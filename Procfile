@@ -1,0 +1,1 @@
+web: gunicorn tarabaintel.wsgi --log-file -

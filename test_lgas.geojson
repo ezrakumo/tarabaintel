@@ -1,0 +1,21 @@
+   {
+     "type": "FeatureCollection",
+     "features": [
+       {
+         "type": "Feature",
+         "properties": { "name": "Jalingo", "type": "LGA", "parent": "Taraba" },
+         "geometry": {
+           "type": "Polygon",
+           "coordinates": [[[11.30, 8.80], [11.40, 8.80], [11.40, 8.95], [11.30, 8.95], [11.30, 8.80]]]
+         }
+       },
+       {
+         "type": "Feature",
+         "properties": { "name": "Wukari", "type": "LGA", "parent": "Taraba" },
+         "geometry": {
+           "type": "Polygon",
+           "coordinates": [[[9.70, 7.80], [9.90, 7.80], [9.90, 8.00], [9.70, 8.00], [9.70, 7.80]]]
+         }
+       }
+     ]
+   }

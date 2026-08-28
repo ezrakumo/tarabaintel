@@ -1,0 +1,128 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Taraba",
+                "CODE": "TR",
+                "TYPE": "STATE"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            7.0,
+                            6.0
+                        ],
+                        [
+                            12.0,
+                            6.0
+                        ],
+                        [
+                            12.0,
+                            9.0
+                        ],
+                        [
+                            7.0,
+                            9.0
+                        ],
+                        [
+                            7.0,
+                            6.0
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Wukari",
+                "LGA_NAME": "Wukari",
+                "STATE": "Taraba",
+                "TYPE": "LGA"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.70,
+                            7.80
+                        ],
+                        [
+                            9.90,
+                            7.80
+                        ],
+                        [
+                            9.90,
+                            8.00
+                        ],
+                        [
+                            9.70,
+                            8.00
+                        ],
+                        [
+                            9.70,
+                            7.80
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Wukari Central",
+                "WARD_NAME": "Wukari Central",
+                "LGA": "Wukari",
+                "TYPE": "WARD"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.75,
+                            7.85
+                        ],
+                        [
+                            9.85,
+                            7.85
+                        ],
+                        [
+                            9.85,
+                            7.95
+                        ],
+                        [
+                            9.75,
+                            7.95
+                        ],
+                        [
+                            9.75,
+                            7.85
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "PU-001 Wukari Central",
+                "WARD": "Wukari Central",
+                "LGA": "Wukari",
+                "TYPE": "POLLING UNIT"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    9.80,
+                    7.90
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,565 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Wukari",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.6,
+                            7.6
+                        ],
+                        [
+                            10.0,
+                            7.6
+                        ],
+                        [
+                            10.0,
+                            8.0
+                        ],
+                        [
+                            9.6,
+                            8.0
+                        ],
+                        [
+                            9.6,
+                            7.6
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Ussa",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.2,
+                            7.6
+                        ],
+                        [
+                            9.6,
+                            7.6
+                        ],
+                        [
+                            9.6,
+                            8.0
+                        ],
+                        [
+                            9.2,
+                            8.0
+                        ],
+                        [
+                            9.2,
+                            7.6
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Takum",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.6,
+                            8.0
+                        ],
+                        [
+                            10.0,
+                            8.0
+                        ],
+                        [
+                            10.0,
+                            8.4
+                        ],
+                        [
+                            9.6,
+                            8.4
+                        ],
+                        [
+                            9.6,
+                            8.0
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Donga",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.0,
+                            8.0
+                        ],
+                        [
+                            10.4,
+                            8.0
+                        ],
+                        [
+                            10.4,
+                            8.4
+                        ],
+                        [
+                            10.0,
+                            8.4
+                        ],
+                        [
+                            10.0,
+                            8.0
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Ibi",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.6,
+                            8.4
+                        ],
+                        [
+                            10.0,
+                            8.4
+                        ],
+                        [
+                            10.0,
+                            8.8
+                        ],
+                        [
+                            9.6,
+                            8.8
+                        ],
+                        [
+                            9.6,
+                            8.4
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Yorro",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.4,
+                            8.4
+                        ],
+                        [
+                            10.8,
+                            8.4
+                        ],
+                        [
+                            10.8,
+                            8.8
+                        ],
+                        [
+                            10.4,
+                            8.8
+                        ],
+                        [
+                            10.4,
+                            8.4
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Jalingo",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            11.2,
+                            8.8
+                        ],
+                        [
+                            11.6,
+                            8.8
+                        ],
+                        [
+                            11.6,
+                            9.2
+                        ],
+                        [
+                            11.2,
+                            9.2
+                        ],
+                        [
+                            11.2,
+                            8.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Zing",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            11.6,
+                            8.8
+                        ],
+                        [
+                            12.0,
+                            8.8
+                        ],
+                        [
+                            12.0,
+                            9.2
+                        ],
+                        [
+                            11.6,
+                            9.2
+                        ],
+                        [
+                            11.6,
+                            8.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Gassol",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.8,
+                            8.8
+                        ],
+                        [
+                            11.2,
+                            8.8
+                        ],
+                        [
+                            11.2,
+                            9.2
+                        ],
+                        [
+                            10.8,
+                            9.2
+                        ],
+                        [
+                            10.8,
+                            8.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Lau",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.4,
+                            8.8
+                        ],
+                        [
+                            10.8,
+                            8.8
+                        ],
+                        [
+                            10.8,
+                            9.2
+                        ],
+                        [
+                            10.4,
+                            9.2
+                        ],
+                        [
+                            10.4,
+                            8.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Ardo-kola",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.0,
+                            8.8
+                        ],
+                        [
+                            10.4,
+                            8.8
+                        ],
+                        [
+                            10.4,
+                            9.2
+                        ],
+                        [
+                            10.0,
+                            9.2
+                        ],
+                        [
+                            10.0,
+                            8.8
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Bali",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.0,
+                            9.2
+                        ],
+                        [
+                            10.4,
+                            9.2
+                        ],
+                        [
+                            10.4,
+                            9.6
+                        ],
+                        [
+                            10.0,
+                            9.6
+                        ],
+                        [
+                            10.0,
+                            9.2
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Gashaka",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            11.6,
+                            9.2
+                        ],
+                        [
+                            12.0,
+                            9.2
+                        ],
+                        [
+                            12.0,
+                            9.6
+                        ],
+                        [
+                            11.6,
+                            9.6
+                        ],
+                        [
+                            11.6,
+                            9.2
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Karim Lamido",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            11.2,
+                            9.2
+                        ],
+                        [
+                            11.6,
+                            9.2
+                        ],
+                        [
+                            11.6,
+                            9.6
+                        ],
+                        [
+                            11.2,
+                            9.6
+                        ],
+                        [
+                            11.2,
+                            9.2
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Kurmi",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            10.8,
+                            9.2
+                        ],
+                        [
+                            11.2,
+                            9.2
+                        ],
+                        [
+                            11.2,
+                            9.6
+                        ],
+                        [
+                            10.8,
+                            9.6
+                        ],
+                        [
+                            10.8,
+                            9.2
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "NAME": "Sardauna",
+                "TYPE": "LGA",
+                "STATE": "Taraba"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            11.6,
+                            9.6
+                        ],
+                        [
+                            12.0,
+                            9.6
+                        ],
+                        [
+                            12.0,
+                            10.0
+                        ],
+                        [
+                            11.6,
+                            10.0
+                        ],
+                        [
+                            11.6,
+                            9.6
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarabaInsight | AI Intelligence Dashboard</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 15px 25px;
+            border-bottom: 2px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+
+        .header h1 span {
+            color: #fbbf24;
+        }
+
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: calc(100vh - 65px);
+        }
+
+        .sidebar {
+            background: #1e293b;
+            overflow-y: auto;
+            border-right: 2px solid #334155;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 15px;
+        }
+
+        .stat-card {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #38bdf8;
+        }
+
+        .stat-card.critical {
+            border-left-color: #ef4444;
+        }
+
+        .stat-card.high {
+            border-left-color: #f59e0b;
+        }
+
+        .stat-card.security {
+            border-left-color: #dc2626;
+        }
+
+        .stat-card.verified {
+            border-left-color: #22c55e;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #334155;
+            background: #0f172a;
+        }
+
+        .report-list {
+            padding: 10px;
+        }
+
+        .report-item {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid #334155;
+        }
+
+        .report-item:hover {
+            background: #334155;
+            transform: translateX(3px);
+        }
+
+        .report-item.critical {
+            border-left-color: #ef4444;
+        }
+
+        .report-item.high {
+            border-left-color: #f59e0b;
+        }
+
+        .report-item.medium {
+            border-left-color: #38bdf8;
+        }
+
+        .report-item.low {
+            border-left-color: #22c55e;
+        }
+
+        .report-item .desc {
+            font-size: 13px;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .report-item .meta {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 10px;
+        }
+
+        .badge.cat {
+            background: #1e40af;
+            color: #dbeafe;
+        }
+
+        .badge.urg-critical {
+            background: #991b1b;
+            color: #fee2e2;
+        }
+
+        .badge.urg-high {
+            background: #92400e;
+            color: #fef3c7;
+        }
+
+        .badge.urg-medium {
+            background: #075985;
+            color: #e0f2fe;
+        }
+
+        .badge.conf {
+            background: #065f46;
+            color: #d1fae5;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .leaflet-popup-tip {
+            background: #1e293b;
+        }
+
+        .popup-content h3 {
+            color: #38bdf8;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .popup-content p {
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+
+        .popup-content .entities {
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+
+        .popup-content .entities strong {
+            color: #fbbf24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🗺️ Taraba<span>Insight</span> | AI Intelligence Dashboard</h1>
+        <div class="status">
+            <div class="pulse"></div>
+            <span>LIVE • Groq AI Powered • {{ stats.total_reports }} Reports Analyzed</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="stats-grid">
+                <div class="stat-card critical">
+                    <div class="label">🚨 Critical</div>
+                    <div class="value">{{ stats.critical_count }}</div>
+                </div>
+                <div class="stat-card high">
+                    <div class="label">⚠️ High</div>
+                    <div class="value">{{ stats.high_count }}</div>
+                </div>
+                <div class="stat-card security">
+                    <div class="label">🛡️ Security</div>
+                    <div class="value">{{ stats.security_count }}</div>
+                </div>
+                <div class="stat-card verified">
+                    <div class="label">✅ Verified</div>
+                    <div class="value">{{ stats.verified_count }}</div>
+                </div>
+            </div>
+
+            <div class="section-title">📡 Live Intelligence Feed</div>
+            <div class="report-list">
+                {% for report in reports %}
+                <div class="report-item {{ report.ai_urgency_level|lower|default:'medium' }}"
+                    onclick="flyToReport({{ forloop.counter0 }})">
+                    <div class="desc">{{ report.description|truncatechars:100 }}</div>
+                    <div class="meta">
+                        <span class="badge cat">{{ report.ai_suggested_category|default:report.issue_category }}</span>
+                        <span class="badge urg-{{ report.ai_urgency_level|lower|default:'medium' }}">
+                            {{ report.ai_urgency_level|default:"MEDIUM" }}
+                        </span>
+                        <span class="badge conf">{{ report.ai_confidence_score|floatformat:0 }}%</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="padding: 20px; text-align: center; color: #64748b;">
+                    No reports yet. Submit one via the API!
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize the map centered on Taraba State
+        const map = L.map('map', {
+            zoomControl: true
+        }).setView([8.0, 10.5], 8);
+
+        // Dark theme tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Report data from Django
+        const reports = {{ map_data| safe }};
+
+        // Color mapping for urgency
+        const urgencyColors = {
+            'CRITICAL': '#ef4444',
+            'HIGH': '#f59e0b',
+            'MEDIUM': '#38bdf8',
+            'LOW': '#22c55e'
+        };
+
+        // Store markers for click interaction
+        const markers = [];
+
+        // Add markers to map
+        reports.forEach((report, index) => {
+            const color = urgencyColors[report.urgency] || '#38bdf8';
+
+            // Custom circle marker
+            const marker = L.circleMarker([report.lat, report.lng], {
+                radius: report.urgency === 'CRITICAL' ? 12 : 8,
+                fillColor: color,
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+
+            // Build popup content with AI entities
+            let entitiesHtml = '';
+            if (report.entities && Object.keys(report.entities).length > 0) {
+                entitiesHtml = '<div class="entities"><strong>🤖 AI Extracted:</strong><br>';
+                if (report.entities.locations && report.entities.locations.length > 0) {
+                    entitiesHtml += `📍 <strong>Locations:</strong> ${report.entities.locations.join(', ')}<br>`;
+                }
+                if (report.entities.organizations && report.entities.organizations.length > 0) {
+                    entitiesHtml += `🏢 <strong>Orgs:</strong> ${report.entities.organizations.join(', ')}<br>`;
+                }
+                if (report.entities.dates && report.entities.dates.length > 0) {
+                    entitiesHtml += `📅 <strong>Dates:</strong> ${report.entities.dates.join(', ')}`;
+                }
+                entitiesHtml += '</div>';
+            }
+
+            const popupContent = `
+                <div class="popup-content">
+                    <h3>${report.category} • ${report.urgency}</h3>
+                    <p>${report.description}</p>
+                    <p><strong>📍 LGA:</strong> ${report.lga}</p>
+                    <p><strong>🤖 AI Confidence:</strong> ${report.confidence}%</p>
+                    <p><strong>📊 Sentiment:</strong> ${report.sentiment}</p>
+                    <p><strong>🕐 Submitted:</strong> ${report.submitted}</p>
+                    ${entitiesHtml}
+                </div>
+            `;
+
+            marker.bindPopup(popupContent, { maxWidth: 300 });
+            markers.push(marker);
+        });
+
+        // Function to fly to a report when clicked in sidebar
+        function flyToReport(index) {
+            if (markers[index]) {
+                map.flyTo(markers[index].getLatLng(), 13, { duration: 1.5 });
+                markers[index].openPopup();
+            }
+        }
+
+        // Fit map to show all markers
+        if (markers.length > 0) {
+            const group = L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.2));
+        }
+    </script>
+</body>
+
+</html>

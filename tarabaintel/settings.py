@@ -78,20 +78,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+import os
+import dj_database_url
+
+# ... (keep your existing SECRET_KEY, DEBUG, ALLOWED_HOSTS, etc.)
 
 DATABASES = {
-    'default': {
-        # This is the magic line that enables GeoDjango
-        'ENGINE': 'django.contrib.gis.db.backends.postgis', 
-        'NAME': 'tarabainsight_db',
-        'USER': 'postgres',
-        'PASSWORD': 'taraba2026',  # <-- CHANGE THIS to the password you set when installing Postgres!
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'),
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
+
+# Add this at the very bottom of the file to handle static files in production
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 

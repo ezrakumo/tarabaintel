@@ -83,6 +83,9 @@ import dj_database_url
 
 # ... (keep your existing SECRET_KEY, DEBUG, ALLOWED_HOSTS, etc.)
 
+import os
+import dj_database_url
+
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'),
@@ -91,6 +94,11 @@ DATABASES = {
     )
 }
 
+# 🔥 THIS IS THE MAGIC FIX: Force Django to use the PostGIS engine
+DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+
+# Add this at the very bottom of the file for production static files
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Add this at the very bottom of the file to handle static files in production
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Password validation

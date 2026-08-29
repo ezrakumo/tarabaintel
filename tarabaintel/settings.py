@@ -146,9 +146,6 @@ GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
 # ==========================================
 import os
 
-GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
-GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
-PROJ_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libproj_8_2.dll'
 
 # Also add the bin folder to the system PATH just in case
 os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')

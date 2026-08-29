@@ -139,7 +139,6 @@ MAILERS = {
     },
 }
 
-GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
 
 # ==========================================
 # GeoDjango Windows Library Paths

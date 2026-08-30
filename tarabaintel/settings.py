@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'django.contrib.gis',
+    'corsheaders',
     'insight',
 ]
 
@@ -169,4 +170,6 @@ import os
 # Also add the bin folder to the system PATH just in case
 os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
 
+# CORS Settings - Allow Flutter/Web apps to access API
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True

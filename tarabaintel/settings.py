@@ -86,6 +86,7 @@ import dj_database_url
 import os
 import dj_database_url
 
+# 1. Setup the database URL from the environment (Cloud) or fallback to SQLite (Local)
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'),
@@ -94,8 +95,18 @@ DATABASES = {
     )
 }
 
-# 🔥 THIS IS THE MAGIC FIX: Force Django to use the PostGIS engine
-DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+# 2. Force PostGIS engine if we are using PostgreSQL (Cloud or Local Postgres)
+if 'postgres' in DATABASES['default'].get('ENGINE', ''):
+    DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+
+# 3. WINDOWS-SPECIFIC FIX: Only apply these paths if running on Windows!
+# This keeps your local laptop happy without breaking the cloud Linux server.
+if os.name == 'nt':  # 'nt' is the internal name for Windows
+    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
+    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c-1.dll'
+
+# 4. Production static files
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Add this at the very bottom of the file for production static files
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -156,3 +167,5 @@ import os
 
 # Also add the bin folder to the system PATH just in case
 os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
+
+CORS_ALLOW_ALL_ORIGINS = True

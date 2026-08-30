@@ -170,6 +170,13 @@ import os
 # Also add the bin folder to the system PATH just in case
 os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
 
-# CORS Settings - Allow Flutter/Web apps to access API
+# BULLETPROOF CORS SETTINGS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept', 'accept-encoding', 'authorization', 'content-type',
+    'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
+]

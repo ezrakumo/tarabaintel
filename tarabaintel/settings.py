@@ -79,23 +79,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
 
-
 import os
 import dj_database_url
 
-# ... (keep your existing SECRET_KEY, DEBUG, ALLOWED_HOSTS, etc.)
-
-import os
-import dj_database_url
+# Check if we are using SQLite locally
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3')
+is_sqlite = 'sqlite' in db_url
 
 # 1. Setup the database URL from the environment (Cloud) or fallback to SQLite (Local)
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3'),
+        default=db_url,
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=not is_sqlite  # <--- ONLY use SSL if it's NOT SQLite!
     )
 }
+
+# 2. Force PostGIS engine if we are using PostgreSQL (Cloud or Local Postgres)
+if not is_sqlite:
+    DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 
 # 2. Force PostGIS engine if we are using PostgreSQL (Cloud or Local Postgres)
 if 'postgres' in DATABASES['default'].get('ENGINE', ''):
@@ -105,7 +107,7 @@ if 'postgres' in DATABASES['default'].get('ENGINE', ''):
 # This keeps your local laptop happy without breaking the cloud Linux server.
 if os.name == 'nt':  # 'nt' is the internal name for Windows
     GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
-    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c-1.dll'
+    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
 # 4. Production static files
 STATIC_ROOT = BASE_DIR / 'staticfiles'

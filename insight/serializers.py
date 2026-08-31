@@ -5,13 +5,10 @@ from .models import Report, FieldAgent, FieldVerification
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
-        fields = [
-            'id', 'location', 'lga', 'description', 'issue_category', 
-            'status', 'submitted_at', 'evidence_set',
-            'ai_suggested_category', 'ai_confidence_score', 
-            'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities'
-        ]
-        read_only_fields = ['id', 'submitted_at', 'ai_suggested_category', 'ai_confidence_score', 'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities']
+        fields = '__all__'
+        
+        read_only_fields = ['ai_suggested_category', 'ai_confidence_score', 
+                           'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities']
 
     # --- THIS IS THE MAGIC FIX ---
     def create(self, validated_data):

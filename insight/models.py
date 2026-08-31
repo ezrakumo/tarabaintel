@@ -51,10 +51,13 @@ class Report(models.Model):
     ], default='RAW')
     submitted_at = models.DateTimeField(default=timezone.now)
     evidence_set = models.JSONField(default=list, blank=True)
+    image_base64 = models.TextField(blank=True, null=True, help_text="Base64 encoded image from mobile app")
+    
 
     # --- AI Analytics Fields ---
-    ai_suggested_category = models.CharField(max_length=50, blank=True, null=True)
+    ai_suggested_category = models.CharField(max_length=50, blank=True,)
     ai_confidence_score = models.FloatField(default=0.0)
+    
     
     # THESE ARE THE MISSING FIELDS:
     ai_sentiment = models.CharField(max_length=20, blank=True, null=True)

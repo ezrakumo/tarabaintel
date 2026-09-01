@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('insight', '0004_remove_fieldagent_created_at_and_more'),
+        ('insight', '0004a_fill_ai_nulls'),
     ]
 
     operations = [

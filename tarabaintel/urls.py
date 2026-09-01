@@ -9,7 +9,7 @@ from insight.views import intelligence_dashboard # Keep your existing import
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/reports/', include('insight.urls')), 
+    path('api/', include('insight.urls')), 
     
     # Authentication URLs (THESE MUST BE HERE)
     path('api/auth/register/', RegisterView.as_view(), name='register'),

@@ -39,3 +39,4 @@ try:
     print(json.dumps(response.json(), indent=2))
 except:
     print(response.text)
+

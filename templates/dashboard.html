@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarabaInsight | Intelligence Command Center</title>
+
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet CSS for the Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Map container MUST have a defined height for Leaflet to render */
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 0.5rem;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 font-sans antialiased">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <h1 class="text-2xl font-bold tracking-wider text-white">TARABA<span class="text-blue-500">INSIGHT</span>
+            </h1>
+        </div>
+        <div class="text-sm text-gray-400">Live Intelligence Command Center</div>
+    </nav>
+
+    <div class="flex flex-col lg:flex-row h-screen overflow-hidden">
+
+        <!-- Left Panel: Interactive Map -->
+        <div class="w-full lg:w-2/3 p-4 flex flex-col">
+            <div class="bg-gray-800 p-4 rounded-lg shadow-xl border border-gray-700 flex-grow">
+                <h2 class="text-lg font-semibold mb-3 text-gray-300 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7">
+                        </path>
+                    </svg>
+                    Geographic Threat Mapping
+                </h2>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Stats & Live Feed -->
+        <div class="w-full lg:w-1/3 p-4 flex flex-col space-y-4 overflow-y-auto">
+
+            <!-- Quick Stats Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-red-500 shadow-lg">
+                    <div class="text-gray-400 text-xs uppercase font-bold">Critical</div>
+                    <div class="text-2xl font-bold text-white">{{ stats.critical_count }}</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-yellow-500 shadow-lg">
+                    <div class="text-gray-400 text-xs uppercase font-bold">High Priority</div>
+                    <div class="text-2xl font-bold text-white">{{ stats.high_count }}</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500 shadow-lg">
+                    <div class="text-gray-400 text-xs uppercase font-bold">Total Reports</div>
+                    <div class="text-2xl font-bold text-white">{{ stats.total_reports }}</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-green-500 shadow-lg">
+                    <div class="text-gray-400 text-xs uppercase font-bold">Verified</div>
+                    <div class="text-2xl font-bold text-white">{{ stats.verified_count }}</div>
+                </div </div>
+
+                <!-- Live Intelligence Feed -->
+                <div class="bg-gray-800 rounded-lg shadow-xl border border-gray-700 flex-grow flex flex-col">
+                    <div class="p-4 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold text-gray-300 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            Live Intelligence Feed
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-3 overflow-y-auto flex-grow" style="max-height: 400px;">
+                        {% for report in reports %}
+                        <div class="bg-gray-700/50 p-3 rounded border border-gray-600 hover:bg-gray-700 transition">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-bold px-2 py-0.5 rounded 
+                                {% if report.ai_urgency_level == 'CRITICAL' %}bg-red-900 text-red-200
+                                {% elif report.ai_urgency_level == 'HIGH' %}bg-yellow-900 text-yellow-200
+                                {% else %}bg-blue-900 text-blue-200{% endif %}">
+                                    {{ report.ai_urgency_level|default:"MEDIUM" }}
+                                </span>
+                                <span class="text-xs text-gray-400">{{ report.submitted_at|date:"M d, H:i" }}</span>
+                            </div>
+                            <p class="text-sm text-gray-200 mb-2">{{ report.description|truncatechars:100 }}</p>
+                            <div class="flex justify-between text-xs text-gray-400">
+                                <span>📍 {{ report.lga.name|default:"Unknown LGA" }}</span>
+                                <span>🏷️ {{ report.ai_suggested_category|default:report.issue_category }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-gray-500 py-8">No active reports in the system.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaflet JS -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+        <!-- Safely pass Django context to JavaScript -->
+        {{ map_data|json_script:"map-data" }}
+
+        <script>
+            // 1. Initialize the Map (Centered on Taraba State, Nigeria approx: 8.9, 11.3)
+            const map = L.map('map').setView([8.9, 11.3], 8);
+
+            // 2. Add OpenStreetMap Dark-themed Tiles (CartoDB Dark Matter for professional look)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 3. Parse the map data from Django
+            const reports = JSON.parse(document.getElementById('map-data').textContent);
+
+            // 4. Define marker colors based on urgency
+            const getColor = (urgency) => {
+                if (urgency === 'CRITICAL') return '#ef4444'; // Red
+                if (urgency === 'HIGH') return '#f59e0b';     // Orange/Yellow
+                return '#3b82f6';                             // Blue
+            };
+
+            // 5. Plot each report on the map
+            reports.forEach(report => {
+                const color = getColor(report.urgency);
+
+                // Create a stylish circle marker
+                const marker = L.circleMarker([report.lat, report.lng], {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.6,
+                    radius: 8
+                }).addTo(map);
+
+                // Add a professional popup with report details
+                const popupContent = `
+                <div style="min-width: 200px; font-family: sans-serif;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: ${color};">
+                        ${report.urgency} THREAT
+                    </h3>
+                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #333;">${report.description}</p>
+                    <div style="font-size: 11px; color: #666; border-top: 1px solid #eee; padding-top: 8px;">
+                        <strong>Category:</strong> ${report.category}<br>
+                        <strong>LGA:</strong> ${report.lga}<br>
+                        <strong>AI Confidence:</strong> ${report.confidence}%<br>
+                        <strong>Time:</strong> ${report.submitted}
+                    </div>
+                </div>
+            `;
+
+                marker.bindPopup(popupContent);
+            });
+        </script>
+</body>
+
+</html>

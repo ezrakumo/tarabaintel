@@ -33,10 +33,13 @@
 
         /* Map container MUST have a defined height for Leaflet to render */
         #map {
-            height: 600px;
-            width: 100%;
+            height: 600px !important;
+            width: 100% !important;
+            min-height: 500px;
             border-radius: 0.5rem;
             z-index: 1;
+            background-color: #1f2937;
+            /* Fallback dark color */
         }
     </style>
 </head>

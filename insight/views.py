@@ -113,38 +113,35 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
 
 
 def intelligence_dashboard(request):
-    """Real-time intelligence dashboard view"""
+    """Real-time intelligence dashboard view - Bulletproof Version"""
     reports = Report.objects.all().order_by('-submitted_at')[:50]
     
     stats = {
         'total_reports': Report.objects.count(),
         'critical_count': Report.objects.filter(ai_urgency_level='CRITICAL').count(),
         'high_count': Report.objects.filter(ai_urgency_level='HIGH').count(),
-        'security_count': Report.objects.filter(ai_suggested_category='SECURITY').count(),
-        'infra_count': Report.objects.filter(ai_suggested_category='INFRA').count(),
-        'agric_count': Report.objects.filter(ai_suggested_category='AGRIC').count(),
         'verified_count': Report.objects.filter(status='VERIFIED').count(),
-        'pending_count': Report.objects.filter(status='PENDING_VERIFICATION').count(),
     }
     
     map_data = []
     for report in reports:
         if report.location:
-            coords = report.location.coords
-            map_data.append({
-                'id': str(report.id),
-                'lng': coords[0],
-                'lat': coords[1],
-                'description': report.description[:150] + ('...' if len(report.description) > 150 else ''),
-                'category': report.ai_suggested_category or report.issue_category,
-                'urgency': report.ai_urgency_level or 'MEDIUM',
-                'sentiment': report.ai_sentiment or 'NEUTRAL',
-                'confidence': round(report.ai_confidence_score * 100, 1),
-                'lga': report.lga.name if report.lga else 'Unknown',
-                'entities': report.ai_extracted_entities or {},
-                'status': report.status,
-                'submitted': report.submitted_at.strftime('%b %d, %Y %H:%M'),
-            })
+            try:
+                coords = report.location.coords
+                lga_name = report.lga.name if report.lga else 'Unknown'
+                map_data.append({
+                    'id': str(report.id),
+                    'lng': float(coords[0]),
+                    'lat': float(coords[1]),
+                    'description': report.description[:150] if report.description else 'No description',
+                    'category': report.ai_suggested_category or report.issue_category or 'General',
+                    'urgency': report.ai_urgency_level or 'MEDIUM',
+                    'confidence': round(report.ai_confidence_score * 100, 1) if report.ai_confidence_score else 0.0,
+                    'lga': lga_name,
+                    'submitted': report.submitted_at.strftime('%b %d, %Y %H:%M') if report.submitted_at else 'Unknown',
+                })
+            except Exception:
+                continue # Safely skip reports with invalid location data
     
     context = {
         'stats': stats,

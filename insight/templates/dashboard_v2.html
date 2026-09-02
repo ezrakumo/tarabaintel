@@ -3,99 +3,199 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>TarabaInsight Dashboard</title>
+    <title>TarabaInsight Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <style>
+        /* Force map height so it doesn't collapse in flex layout */
         #map {
-            height: 500px;
+            height: 100%;
             width: 100%;
             background: white;
             border-radius: 8px;
         }
+
+        /* Custom scrollbar for the feed */
+        .feed-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .feed-scroll::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        .feed-scroll::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        /* Pulse animation for critical stats */
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
     </style>
 </head>
 
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
 
-    <div class="container mx-auto p-6">
-        <h1 class="text-3xl font-bold mb-6 text-blue-400">TARABA INSIGHT COMMAND CENTER</h1>
+    <!-- Header -->
+    <div class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-lg shrink-0">
+        <h1 class="text-2xl font-bold text-blue-400 tracking-wider">TARABA INSIGHT COMMAND CENTER</h1>
+        <div class="text-sm text-gray-400 flex items-center">
+            <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+            Live • Auto-refresh: 30s
+        </div>
+    </div>
 
-        <!-- Stats -->
+    <div class="flex-grow p-6 overflow-y-auto">
+
+        <!-- Stats Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-red-600 p-4 rounded">
-                <div class="text-sm">Critical</div>
+            <div class="bg-red-600 p-4 rounded {% if stats.critical_count > 0 %}pulse{% endif %}">
+                <div class="text-sm flex items-center"><span class="mr-2"></span> Critical</div>
                 <div class="text-2xl font-bold">{{ stats.critical_count|default:"0" }}</div>
             </div>
             <div class="bg-yellow-600 p-4 rounded">
-                <div class="text-sm">High</div>
+                <div class="text-sm flex items-center"><span class="mr-2">⚠️</span> High</div>
                 <div class="text-2xl font-bold">{{ stats.high_count|default:"0" }}</div>
             </div>
             <div class="bg-blue-600 p-4 rounded">
-                <div class="text-sm">Total</div>
+                <div class="text-sm flex items-center"><span class="mr-2">📊</span> Total</div>
                 <div class="text-2xl font-bold">{{ stats.total_reports|default:"0" }}</div>
             </div>
             <div class="bg-green-600 p-4 rounded">
-                <div class="text-sm">Verified</div>
+                <div class="text-sm flex items-center"><span class="mr-2">✅</span> Verified</div>
                 <div class="text-2xl font-bold">{{ stats.verified_count|default:"0" }}</div>
             </div>
         </div>
 
-        <!-- Map -->
-        <div class="bg-gray-800 p-4 rounded mb-6">
-            <h2 class="text-xl font-bold mb-3">Threat Map</h2>
-            <div id="map"></div>
-        </div>
+        <!-- MAIN DASHBOARD: Map and Feed Side-by-Side -->
+        <div class="flex flex-col lg:flex-row gap-6 h-[550px]">
 
-        <!-- Feed -->
-        <div class="bg-gray-800 p-4 rounded">
-            <h2 class="text-xl font-bold mb-3">Live Feed</h2>
-
-            {% if reports %}
-            {% for report in reports %}
-            <div class="border-b border-gray-700 p-3 mb-2">
-                <div class="flex justify-between">
-                    <span class="px-2 py-1 rounded text-xs font-bold bg-blue-900 text-blue-200">
-                        {{ report.ai_urgency_level|default:"MEDIUM" }}
-                    </span>
-                    <span class="text-gray-400 text-sm">
-                        {{ report.submitted_at|date:"M d, H:i"|default:"Just now" }}
-                    </span>
+            <!-- LEFT: Interactive Map (Takes up 2/3 of the space) -->
+            <div class="w-full lg:w-2/3 bg-gray-800 p-4 rounded shadow-lg flex flex-col">
+                <h2 class="text-xl font-bold mb-3 text-gray-200 shrink-0">Geographic Threat Map</h2>
+                <div class="flex-grow rounded overflow-hidden">
+                    <div id="map"></div>
                 </div>
-                <p class="mt-2 text-sm">{{ report.description|truncatechars:100|default:"No description" }}</p>
-                <p class="text-xs text-gray-500 mt-1">
-                    LGA: {{ report.lga.name|default:"Unknown" }}
-                </p>
             </div>
-            {% endfor %}
-            {% else %}
-            <p class="text-gray-500 text-center py-4">No reports yet.</p>
-            {% endif %}
 
+            <!-- RIGHT: Clickable Intelligence Feed (Takes up 1/3 of the space) -->
+            <div class="w-full lg:w-1/3 bg-gray-800 p-4 rounded shadow-lg flex flex-col">
+                <h2 class="text-xl font-bold mb-3 text-gray-200 shrink-0">Live Intelligence Feed</h2>
+                <div class="flex-grow overflow-y-auto feed-scroll space-y-3 pr-2">
+
+                    {% if reports %}
+                    {% for report in reports %}
+                    <!-- Clickable Report Card -->
+                    <div class="border border-gray-700 p-3 rounded bg-gray-750 hover:bg-gray-700 transition cursor-pointer"
+                        onclick="focusReport('{{ report.id }}')">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="px-3 py-1 rounded text-xs font-bold
+                                    {% if report.ai_urgency_level == 'CRITICAL' %}bg-red-600 text-white
+                                    {% elif report.ai_urgency_level == 'HIGH' %}bg-yellow-600 text-black
+                                    {% else %}bg-blue-600 text-white{% endif %}">
+                                {{ report.ai_urgency_level|default:"MEDIUM" }}
+                            </span>
+                            <span class="text-gray-400 text-xs">
+                                {{ report.submitted_at|date:"M d, H:i" }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-200 mb-2 line-clamp-2">{{
+                            report.description|truncatechars:80|default:"No description" }}</p>
+                        <div class="flex gap-3 text-xs text-gray-400">
+                            <span>📍 {{ report.lga.name|default:"Unknown" }}</span>
+                            <span>🎯 {{ report.ai_confidence_score|default:"0"|floatformat:0 }}%</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-gray-500 text-center py-4">No active reports.</p>
+                    {% endif %}
+
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script>
+        // 1. Initialize Map
         const map = L.map('map').setView([8.9, 11.3], 8);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(map);
 
+        // 2. Store markers in an object so we can access them by Report ID
+        const markers = {};
         const mapData = {{ map_data| safe }};
+        const markerGroup = L.featureGroup();
 
         if (mapData && mapData.length > 0) {
             mapData.forEach(function (report) {
-                const color = report.urgency === 'CRITICAL' ? 'red' :
-                    report.urgency === 'HIGH' ? 'orange' : 'blue';
+                let color = '#3b82f6';
+                if (report.urgency === 'CRITICAL') color = '#ef4444';
+                else if (report.urgency === 'HIGH') color = '#f59e0b';
 
-                L.circleMarker([report.lat, report.lng], {
-                    radius: 8, fillColor: color, color: color, fillOpacity: 0.6
-                }).addTo(map).bindPopup(
-                    '<b>' + (report.urgency || 'MEDIUM') + ' THREAT</b><br>' +
-                    (report.description || 'No description') + '<br>' +
-                    'Category: ' + (report.category || 'General')
-                );
+                const marker = L.circleMarker([report.lat, report.lng], {
+                    radius: 10, fillColor: color, color: '#fff', fillOpacity: 0.8, weight: 2
+                }).addTo(map);
+
+                const popupContent = `
+                    <div style="min-width: 200px;">
+                        <h3 style="margin:0 0 8px 0; color: ${color}; font-weight:bold;">${report.urgency} THREAT</h3>
+                        <p style="margin:0 0 8px 0; font-size:13px;">${report.description || 'No description'}</p>
+                        <div style="font-size:11px; color:#666; border-top:1px solid #eee; padding-top:5px;">
+                            <b>LGA:</b> ${report.lga}<br>
+                            <b>Confidence:</b> ${report.confidence}%
+                        </div>
+                    </div>`;
+
+                marker.bindPopup(popupContent);
+                markerGroup.addLayer(marker);
+
+                // Store marker by ID for the feed click event
+                markers[report.id] = marker;
             });
+
+            // Auto-zoom to fit all markers
+            map.fitBounds(markerGroup.getBounds().pad(0.1));
         }
+
+        // 3. THE MAGIC FUNCTION: Fly to report when feed is clicked
+        function focusReport(reportId) {
+            const marker = markers[reportId];
+            if (marker) {
+                // Smoothly fly to the location and zoom in
+                map.flyTo(marker.getLatLng(), 12, { duration: 1.5 });
+                // Open the popup after a short delay so the map has time to move
+                setTimeout(() => {
+                    marker.openPopup();
+                }, 1000);
+            }
+        }
+
+        // 4. Auto-refresh logic
+        let countdown = 30;
+        setInterval(() => {
+            countdown--;
+            if (countdown <= 0) location.reload();
+        }, 1000);
     </script>
 </body>
 

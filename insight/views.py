@@ -152,4 +152,4 @@ def intelligence_dashboard(request):
         'reports': reports,
     }
     
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard_v2.html', context)

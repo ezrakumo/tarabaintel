@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0'
 
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 # Tell Django where the PostGIS mapping libraries are located on Windows

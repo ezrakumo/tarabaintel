@@ -50,33 +50,28 @@
         <!-- Feed -->
         <div class="bg-gray-800 p-4 rounded">
             <h2 class="text-xl font-bold mb-3">Live Feed</h2>
+
+            {% if reports %}
             {% for report in reports %}
-            <div class="border-b border-gray-700 p-3">
+            <div class="border-b border-gray-700 p-3 mb-2">
                 <div class="flex justify-between">
-                    <span class="px-2 py-1 rounded text-xs font-bold
-                        {% if report.ai_urgency_level == 'CRITICAL' %}bg-red-900 text-red-200
-                        {% elif report.ai_urgency_level == 'HIGH' %}bg-yellow-900 text-yellow-200
-                        {% else %}bg-blue-900 text-blue-200{% endif %}">
+                    <span class="px-2 py-1 rounded text-xs font-bold bg-blue-900 text-blue-200">
                         {{ report.ai_urgency_level|default:"MEDIUM" }}
                     </span>
                     <span class="text-gray-400 text-sm">
-                        {% if report.submitted_at %}{{ report.submitted_at|date:"M d, H:i" }}{% else %}Just now{% endif
-                        %}
+                        {{ report.submitted_at|date:"M d, H:i"|default:"Just now" }}
                     </span>
                 </div>
                 <p class="mt-2 text-sm">{{ report.description|truncatechars:100|default:"No description" }}</p>
                 <p class="text-xs text-gray-500 mt-1">
-                    LGA:
-                    {% if report.lga %}
-                    {{ report.lga.name }}
-                    {% else %}
-                    Unknown
-                    {% endif %}
+                    LGA: {{ report.lga.name|default:"Unknown" }}
                 </p>
             </div>
-            {% empty %}
-            <p class="text-gray-500 text-center py-4">No reports yet.</p>
             {% endfor %}
+            {% else %}
+            <p class="text-gray-500 text-center py-4">No reports yet.</p>
+            {% endif %}
+
         </div>
     </div>
 

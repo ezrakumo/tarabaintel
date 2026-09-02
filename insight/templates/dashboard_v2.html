@@ -77,7 +77,7 @@
             </div>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-6 h-[550px]">
+        <div class="flex flex-col lg:flex-row gap-6 h-[600px]">
             <div class="w-full lg:w-2/3 bg-gray-800 p-4 rounded shadow-lg flex flex-col">
                 <h2 class="text-xl font-bold mb-3 text-gray-200 shrink-0">Geographic Threat Map</h2>
                 <div class="flex-grow rounded overflow-hidden">
@@ -87,7 +87,7 @@
 
             <div class="w-full lg:w-1/3 bg-gray-800 p-4 rounded shadow-lg flex flex-col">
                 <h2 class="text-xl font-bold mb-3 text-gray-200 shrink-0">Live Intelligence Feed</h2>
-                <div class="flex-grow overflow-y-auto feed-scroll space-y-3 pr-2">
+                <div class="flex-grow overflow-y-auto feed-scroll space-y-4 pr-2">
                     {% if reports %}
                     {% for report in reports %}
                     <div class="border border-gray-700 p-3 rounded bg-gray-750 hover:bg-gray-700 transition cursor-pointer"
@@ -103,7 +103,15 @@
                                 {{ report.submitted_at|date:"M d, H:i" }}
                             </span>
                         </div>
-                        <!-- FULL DESCRIPTION (No truncation) -->
+
+                        <!-- PHOTO EVIDENCE THUMBNAIL -->
+                        {% if report.image %}
+                        <div class="mb-2">
+                            <img src="{{ report.image.url }}" alt="Evidence"
+                                class="w-full h-32 object-cover rounded border border-gray-600">
+                        </div>
+                        {% endif %}
+
                         <p class="text-sm text-gray-200 mb-2">{{ report.description|default:"No description" }}</p>
                         <div class="flex gap-3 text-xs text-gray-400">
                             <span>📍 {{ report.lga.name|default:"Unknown" }}</span>
@@ -140,11 +148,15 @@
                     radius: 10, fillColor: color, color: '#fff', fillOpacity: 0.8, weight: 2
                 }).addTo(map);
 
+                // Build popup with optional image
+                let imageHtml = report.image ? `<img src="${report.image}" style="width:100%; border-radius:4px; margin-top:8px; border:1px solid #ddd;">` : '';
+
                 const popupContent = `
-                    <div style="min-width: 200px;">
-                        <h3 style="margin:0 0 8px 0; color: ${color}; font-weight:bold;">${report.urgency} THREAT</h3>
-                        <p style="margin:0 0 8px 0; font-size:13px;">${report.description || 'No description'}</p>
-                        <div style="font-size:11px; color:#666; border-top:1px solid #eee; padding-top:5px;">
+                    <div style="min-width: 220px; font-family: sans-serif;">
+                        <h3 style="margin:0 0 8px 0; color: ${color}; font-weight:bold; font-size:14px;">${report.urgency} THREAT</h3>
+                        <p style="margin:0 0 8px 0; font-size:12px; color:#333;">${report.description || 'No description'}</p>
+                        ${imageHtml}
+                        <div style="font-size:11px; color:#666; border-top:1px solid #eee; padding-top:8px; margin-top:8px;">
                             <b>LGA:</b> ${report.lga}<br>
                             <b>Confidence:</b> ${report.confidence}%
                         </div>

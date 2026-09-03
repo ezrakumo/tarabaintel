@@ -111,7 +111,6 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 def intelligence_dashboard(request):
     """Real-time intelligence dashboard view - Bulletproof Version"""
     reports = Report.objects.all().order_by('-submitted_at')[:50]
@@ -129,6 +128,7 @@ def intelligence_dashboard(request):
             try:
                 coords = report.location.coords
                 lga_name = report.lga.name if report.lga else 'Unknown'
+                
                 map_data.append({
                     'id': str(report.id),
                     'lng': float(coords[0]),
@@ -139,10 +139,11 @@ def intelligence_dashboard(request):
                     'confidence': round(report.ai_confidence_score * 100, 1) if report.ai_confidence_score else 0.0,
                     'lga': lga_name,
                     'submitted': report.submitted_at.strftime('%b %d, %Y %H:%M') if report.submitted_at else 'Unknown',
+                    'image_base64': report.image_base64 or '', # <-- ADD THIS LINE
                 })
             except Exception:
-                continue # Safely skip reports with invalid location data
-    
+                continue 
+            
     context = {
         'stats': stats,
         'map_data': map_data,

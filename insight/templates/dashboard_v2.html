@@ -104,10 +104,10 @@
                             </span>
                         </div>
 
-                        <!-- PHOTO EVIDENCE THUMBNAIL -->
-                        {% if report.image %}
+                        <!-- BASE64 PHOTO EVIDENCE RENDERER -->
+                        {% if report.image_base64 %}
                         <div class="mb-2">
-                            <img src="{{ report.image.url }}" alt="Evidence"
+                            <img src="data:image/jpeg;base64,{{ report.image_base64 }}" alt="Evidence"
                                 class="w-full h-32 object-cover rounded border border-gray-600">
                         </div>
                         {% endif %}
@@ -115,7 +115,7 @@
                         <p class="text-sm text-gray-200 mb-2">{{ report.description|default:"No description" }}</p>
                         <div class="flex gap-3 text-xs text-gray-400">
                             <span>📍 {{ report.lga.name|default:"Unknown" }}</span>
-                            <span> {{ report.ai_confidence_score|default:"0"|floatformat:0 }}%</span>
+                            <span>🎯 {{ report.ai_confidence_score|default:"0"|floatformat:0 }}%</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -148,8 +148,15 @@
                     radius: 10, fillColor: color, color: '#fff', fillOpacity: 0.8, weight: 2
                 }).addTo(map);
 
-                // Build popup with optional image
-                let imageHtml = report.image ? `<img src="${report.image}" style="width:100%; border-radius:4px; margin-top:8px; border:1px solid #ddd;">` : '';
+                // Smart Base64 Image Renderer for Popup
+                let imageHtml = '';
+                if (report.image_base64) {
+                    let imgSrc = report.image_base64;
+                    if (!imgSrc.startsWith('data:image')) {
+                        imgSrc = 'data:image/jpeg;base64,' + imgSrc;
+                    }
+                    imageHtml = `<img src="${imgSrc}" style="width:100%; border-radius:4px; margin-top:8px; border:1px solid #ddd;">`;
+                }
 
                 const popupContent = `
                     <div style="min-width: 220px; font-family: sans-serif;">

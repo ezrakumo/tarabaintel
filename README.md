@@ -1,28 +1,43 @@
-﻿# 🗺️ TarabaInsight - AI Intelligence Platform
+﻿# 🛡️ TarabaInsight - National Security Intelligence Platform
 
-[![Live](https://img.shields.io/badge/Live-Deployment-brightgreen)](https://tarabaintel.onrender.com)
-[![AI Powered](https://img.shields.io/badge/AI-Groq%20LLM-blue)](https://groq.com)
+<div align="center">
 
-Real-time spatial intelligence platform for incident reporting, threat analysis, and field verification.
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success)
+![Django](https://img.shields.io/badge/Django-6.1-green)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-blue)
+![Render](https://img.shields.io/badge/Deployed%20on-Render-purple)
 
-## 🚀 Live Demo
-**[https://tarabaintel.onrender.com](https://tarabaintel.onrender.com)**
+**Real-time crowdsourced intelligence platform for national security, agricultural monitoring, and infrastructure assessment in Taraba State, Nigeria.**
 
-## ⚡ Quick Start
-1. Clone: git clone https://github.com/ezrakumo/tarabaintel.git
-2. Install: pip install -r requirements.txt
-3. Configure: Add GROQ_API_KEY to .env
-4. Run: python manage.py runserver
+[🌐 Live Dashboard](https://tarabaintel.onrender.com) • [ Full Project Guide](./PROJECT_GUIDE.md)
+
+</div>
+
+---
+
+##  Overview
+**TarabaInsight** empowers citizens and field agents to report security threats, infrastructure issues, and agricultural concerns in real-time. It combines a native Flutter mobile app for field data collection with a Django-powered web dashboard for real-time geospatial intelligence and AI-driven threat analysis.
+
+## ✨ Key Features
+- 📱 **Native Mobile App:** Android app with offline capabilities, GPS geotagging, and Base64 photo evidence.
+- 🗺️ **Interactive Command Center:** Real-time Leaflet.js map with color-coded threat markers (Critical, High, Medium).
+- 🤖 **AI-Powered Analytics:** Automatic threat categorization, urgency assessment, and sentiment analysis.
+- 🔐 **Secure Architecture:** JWT authentication, role-based access (Citizen/Agent), and secure API routing.
+- ⚡ **Live Intelligence Feed:** Auto-refreshing dashboard with cross-component interactivity (click feed to fly-to map).
 
 ## 🛠️ Tech Stack
-- **Backend:** Django + GeoDjango + Django REST Framework
-- **AI Engine:** Groq API (Llama 3.1 70B)
-- **Database:** PostgreSQL + PostGIS (Supabase)
-- **Frontend:** Leaflet.js + Custom HTML/CSS
-- **Deployment:** Render.com
+- **Backend:** Django 6.1, Django REST Framework, GeoDjango, PostgreSQL + PostGIS.
+- **Frontend (Web):** HTML5, Tailwind CSS, Leaflet.js, Vanilla JS.
+- **Mobile:** Flutter 3.x, Dart, Dio, Image Picker, Geolocator.
+- **DevOps:** Render, Gunicorn, WhiteNoise, Git/GitHub.
 
-## 📚 Documentation
-See the docs/ folder for complete architecture and API guides.
+## 🚀 Quick Start
 
-## 📜 License
-MIT License - Ezra John Kure (2026)
+### 1. Backend Setup
+```bash
+git clone https://github.com/ezrakumo/tarabaintel.git
+cd tarabaintel
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate && python manage.py runserver
+

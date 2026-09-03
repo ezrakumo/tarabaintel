@@ -106,3 +106,70 @@ class FieldVerification(models.Model):
 
     def __str__(self):
         return f"Verification for {self.report.id}"
+    
+# --- INTELLIGENCE ANALYSIS MODELS ---
+
+# --- INTELLIGENCE ANALYSIS MODELS ---
+
+class IntelligenceSummary(models.Model):
+    """Automated AI-generated intelligence summaries (SITREPs)"""
+    PERIOD_CHOICES = [
+        ('DAILY', 'Daily SITREP'),
+        ('WEEKLY', 'Weekly Intelligence Summary'),
+        ('FLASH', 'Flash Alert'),
+    ]
+    
+    title = models.CharField(max_length=200, default='')
+    period_type = models.CharField(max_length=20, choices=PERIOD_CHOICES, default='DAILY')
+    period_start = models.DateTimeField(default=timezone.now)
+    period_end = models.DateTimeField(default=timezone.now)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    
+    # AI-generated content
+    executive_briefing = models.TextField(default='', blank=True)
+    key_findings = models.JSONField(default=list, blank=True)
+    emerging_threats = models.JSONField(default=list, blank=True)
+    recommendations = models.JSONField(default=list, blank=True)
+    
+    # Statistics
+    statistics = models.JSONField(default=dict, blank=True)
+    
+    # Links to source reports
+    source_reports = models.ManyToManyField(Report, related_name='intelligence_summaries', blank=True)
+    
+    class Meta:
+        ordering = ['-generated_at']
+        verbose_name_plural = "Intelligence Summaries"
+    
+    def __str__(self):
+        return f"{self.period_type} - {self.title}"
+
+
+class PatternAlert(models.Model):
+    """Automated alerts for detected spatial/temporal patterns"""
+    ALERT_TYPES = [
+        ('SURGE', 'Report Volume Surge'),
+        ('CLUSTER', 'Geographic Clustering'),
+        ('ESCALATION', 'Urgency Escalation'),
+    ]
+    
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, default='SURGE')
+    severity = models.CharField(max_length=20, choices=[
+        ('INFO', 'Informational'), ('WARNING', 'Warning'), ('CRITICAL', 'Critical'),
+    ], default='INFO')
+    title = models.CharField(max_length=200, default='')
+    description = models.TextField(default='', blank=True)
+    detected_at = models.DateTimeField(auto_now_add=True)
+    
+    # Pattern data
+    pattern_data = models.JSONField(default=dict, blank=True)
+    related_reports = models.ManyToManyField(Report, related_name='pattern_alerts', blank=True)
+    
+    # Response
+    acknowledged = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-detected_at']
+    
+    def __str__(self):
+        return f"[{self.severity}] {self.title}"

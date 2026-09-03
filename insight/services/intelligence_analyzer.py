@@ -1,13 +1,16 @@
 import numpy as np
 from sklearn.cluster import DBSCAN
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone  # <-- ADDED: Django's timezone-aware now()
 
 class IntelligenceAnalyzer:
     """Core AI Engine for TarabaInsight Intelligence Analysis"""
     
     def analyze_temporal_patterns(self, reports, days=7):
         """Detect trends over time (e.g., comparing this week to last week)"""
-        cutoff = datetime.now() - timedelta(days=days)
+        # FIXED: Use timezone.now() to match Django's aware datetimes
+        cutoff = timezone.now() - timedelta(days=days)
+        
         recent = [r for r in reports if r.submitted_at and r.submitted_at >= cutoff]
         previous = [r for r in reports if r.submitted_at and r.submitted_at < cutoff]
         
@@ -46,20 +49,16 @@ class IntelligenceAnalyzer:
 
     def detect_geospatial_clusters(self, reports, radius_km=5):
         """Find geographic hotspots using DBSCAN clustering"""
-        # Filter reports that actually have coordinates
         valid_reports = [r for r in reports if r.location]
         if len(valid_reports) < 3:
-            return [] # Need at least 3 points to form a cluster
+            return []
             
-        # Extract coordinates [lat, lng]
         coords = np.array([[r.location.y, r.location.x] for r in valid_reports])
-        
-        # DBSCAN: eps is roughly 0.045 degrees (~5km at the equator)
         clustering = DBSCAN(eps=0.045, min_samples=3).fit(coords)
         
         clusters = {}
         for i, label in enumerate(clustering.labels_):
-            if label != -1: # -1 means noise/outlier
+            if label != -1:
                 if label not in clusters:
                     clusters[label] = []
                 clusters[label].append(valid_reports[i])
@@ -75,7 +74,6 @@ class IntelligenceAnalyzer:
                 'urgency_levels': list(set(r.ai_urgency_level for r in cluster_reports if r.ai_urgency_level)),
             })
             
-        # Sort by highest report count
         return sorted(hotspot_analysis, key=lambda x: x['report_count'], reverse=True)
 
     def generate_intelligence_summary(self, reports, period='daily'):
@@ -84,7 +82,6 @@ class IntelligenceAnalyzer:
         temporal = self.analyze_temporal_patterns(reports, days=days)
         hotspots = self.detect_geospatial_clusters(reports)
         
-        # Generate Executive Briefing Text
         trend_word = "increased" if temporal['change_percent'] > 0 else "decreased"
         briefing = f"Over the past {days} day(s), intelligence collection {trend_word} by {abs(temporal['change_percent'])}%. "
         
@@ -98,7 +95,6 @@ class IntelligenceAnalyzer:
         else:
             briefing += "Overall threat urgency remains stable."
             
-        # Generate Key Findings
         key_findings = []
         if temporal['change_percent'] > 20:
             key_findings.append(f"Significant surge in reporting activity ({temporal['change_percent']}%) detected.")
@@ -106,7 +102,6 @@ class IntelligenceAnalyzer:
             top_hotspot = hotspots[0]
             key_findings.append(f"Primary hotspot identified with {top_hotspot['report_count']} clustered incidents.")
             
-        # Generate Recommendations
         recommendations = []
         if hotspots:
             recommendations.append("Deploy field verification assets to primary geographic hotspots.")

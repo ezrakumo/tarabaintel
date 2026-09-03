@@ -151,3 +151,42 @@ def intelligence_dashboard(request):
     }
     
     return render(request, 'dashboard_v2.html', context)
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from insight.services.intelligence_service import IntelligenceGenerationService
+
+@api_view(['GET'])
+def test_ai_engine(request):
+    """Temporary endpoint to test the AI Intelligence Analyzer in production"""
+    try:
+        service = IntelligenceGenerationService()
+        
+        # 1. Generate the SITREP
+        summary = service.generate_daily_sitrep()
+        
+        # 2. Check for pattern alerts
+        service.check_for_alerts()
+        
+        if summary:
+            return Response({
+                "status": "SUCCESS",
+                "message": "AI Engine executed successfully!",
+                "summary": {
+                    "title": summary.title,
+                    "briefing": summary.executive_briefing,
+                    "findings": summary.key_findings,
+                    "stats": summary.statistics
+                }
+            })
+        else:
+            return Response({
+                "status": "NO_DATA",
+                "message": "No reports found in the last 24 hours to analyze. Try submitting a new report first!"
+            })
+            
+    except Exception as e:
+        return Response({
+            "status": "ERROR", 
+            "message": str(e)
+        }, status=500)

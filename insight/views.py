@@ -190,3 +190,33 @@ def test_ai_engine(request):
             "status": "ERROR", 
             "message": str(e)
         }, status=500)
+
+from django.core.management import call_command
+import io
+
+@api_view(['GET'])
+def run_migrations_endpoint(request):
+    """Temporary endpoint to run makemigrations and migrate in production"""
+    try:
+        # Capture the output of the commands
+        out = io.StringIO()
+        
+        # 1. Make migrations
+        call_command('makemigrations', stdout=out)
+        makemigrations_output = out.getvalue()
+        
+        # 2. Run migrations
+        out = io.StringIO() # Reset the buffer
+        call_command('migrate', stdout=out)
+        migrate_output = out.getvalue()
+        
+        return Response({
+            "status": "SUCCESS",
+            "makemigrations_output": makemigrations_output,
+            "migrate_output": migrate_output
+        })
+    except Exception as e:
+        return Response({
+            "status": "ERROR", 
+            "message": str(e)
+        }, status=500)

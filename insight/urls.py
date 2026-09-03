@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ReportViewSet, FieldVerificationViewSet
+from .views import ReportViewSet, FieldVerificationViewSet, test_ai_engine
 
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
@@ -8,4 +8,5 @@ router.register(r'field-verifications', FieldVerificationViewSet, basename='fiel
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('test-ai/', test_ai_engine, name='test_ai'),
 ]

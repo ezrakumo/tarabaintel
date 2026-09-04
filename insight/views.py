@@ -220,3 +220,30 @@ def run_migrations_endpoint(request):
             "status": "ERROR", 
             "message": str(e)
         }, status=500)
+        
+@api_view(['GET'])
+def fix_missing_tables(request):
+    """Temporary endpoint to force-create missing database tables in production"""
+    from django.db import connection
+    from insight.models import IntelligenceSummary, PatternAlert
+    
+    results = []
+    
+    # Use Django's schema editor to physically create the tables
+    with connection.schema_editor() as schema_editor:
+        try:
+            schema_editor.create_model(IntelligenceSummary)
+            results.append("✅ Successfully created 'insight_intelligencesummary' table.")
+        except Exception as e:
+            results.append(f"⚠️ IntelligenceSummary table issue: {str(e)}")
+            
+        try:
+            schema_editor.create_model(PatternAlert)
+            results.append("✅ Successfully created 'insight_patternalert' table.")
+        except Exception as e:
+            results.append(f"⚠️ PatternAlert table issue: {str(e)}")
+            
+    return Response({
+        "status": "DONE",
+        "results": results
+    })

@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import ReportViewSet, FieldVerificationViewSet, test_ai_engine
+from .views import ReportViewSet, FieldVerificationViewSet, test_ai_engine, intelligence_briefing_dashboard
 
 # Initialize the API Router
 router = DefaultRouter()
@@ -14,4 +15,5 @@ urlpatterns = [
     # AI Engine Test Endpoint 
     # (Note: In final production, this should be removed or protected with IsAdminUser permissions)
     path('test-ai/', test_ai_engine, name='test_ai'),
+    path('briefing/', intelligence_briefing_dashboard, name='intelligence_briefing')
 ]

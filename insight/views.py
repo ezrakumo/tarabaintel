@@ -15,6 +15,7 @@ from .serializers import (
     VerificationCompleteSerializer
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
+from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -195,3 +196,34 @@ def test_ai_engine(request):
             "status": "ERROR", 
             "message": str(e)
         }, status=500)
+        
+def intelligence_briefing_dashboard(request):
+    """Executive Intelligence Dashboard for Stakeholders"""
+    # Get the latest generated summary
+    latest_summary = IntelligenceSummary.objects.first()
+    
+    # Get recent unacknowledged alerts
+    recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
+    
+    # Prepare Chart.js data (Last 7 summaries)
+    summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
+    
+    chart_labels = []
+    chart_volumes = []
+    chart_critical = []
+    
+    for summary in summaries_history:
+        # Format date to be readable (e.g., "Sep 04")
+        chart_labels.append(summary.generated_at.strftime('%b %d'))
+        chart_volumes.append(summary.statistics.get('total_reports', 0))
+        chart_critical.append(summary.statistics.get('critical_incidents', 0))
+        
+    context = {
+        'latest_summary': latest_summary,
+        'recent_alerts': recent_alerts,
+        'chart_labels': chart_labels,
+        'chart_volumes': chart_volumes,
+        'chart_critical': chart_critical,
+    }
+    
+    return render(request, 'intelligence_dashboard.html', context)

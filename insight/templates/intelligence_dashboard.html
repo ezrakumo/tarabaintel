@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarabaInsight | Executive Briefing Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.4);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">TARABA INSIGHT</h1>
+                    <p class="text-xs text-gray-400">Executive Intelligence Briefing Center</p>
+                </div>
+            </div>
+            <a href="/" class="text-sm text-blue-400 hover:text-blue-300 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Command Center
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {% if latest_summary %}
+        <!-- Executive Briefing Banner -->
+        <div class="glass-panel rounded-xl p-6 mb-8 border-l-4 border-blue-500">
+            <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Latest Executive Briefing: {{ latest_summary.title }}
+            </h2>
+            <p class="text-gray-300 text-lg leading-relaxed">{{ latest_summary.executive_briefing }}</p>
+            <p class="text-xs text-gray-500 mt-3">Generated: {{ latest_summary.generated_at|date:"M d, Y H:i" }}</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass-panel rounded-xl p-5 text-center">
+                <p class="text-gray-400 text-sm uppercase tracking-wider">Total Reports</p>
+                <p class="text-3xl font-bold text-white mt-1">{{ latest_summary.statistics.total_reports|default:"0" }}
+                </p>
+            </div>
+            <div class="glass-panel rounded-xl p-5 text-center">
+                <p class="text-gray-400 text-sm uppercase tracking-wider">Critical Incidents</p>
+                <p class="text-3xl font-bold text-red-500 mt-1">{{
+                    latest_summary.statistics.critical_incidents|default:"0" }}</p>
+            </div>
+            <div class="glass-panel rounded-xl p-5 text-center">
+                <p class="text-gray-400 text-sm uppercase tracking-wider">Hotspots Identified</p>
+                <p class="text-3xl font-bold text-yellow-500 mt-1">{{
+                    latest_summary.statistics.hotspots_identified|default:"0" }}</p>
+            </div>
+            <div class="glass-panel rounded-xl p-5 text-center">
+                <p class="text-gray-400 text-sm uppercase tracking-wider">Overall Trend</p>
+                <p class="text-3xl font-bold mt-1 
+                        {% if latest_summary.statistics.trend == 'INCREASING' %}text-red-500
+                        {% elif latest_summary.statistics.trend == 'DECREASING' %}text-green-500
+                        {% else %}text-blue-400{% endif %}">
+                    {{ latest_summary.statistics.trend|default:"STABLE" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+
+            <!-- Left: Findings & Threats -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Key Findings -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                            </path>
+                        </svg>
+                        Key Findings
+                    </h3>
+                    <ul class="space-y-3">
+                        {% for finding in latest_summary.key_findings %}
+                        <li class="flex items-start text-gray-300">
+                            <span class="text-blue-500 mr-3 mt-1"></span>
+                            <span>{{ finding }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="text-gray-500 italic">No specific findings generated for this period.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Emerging Threats -->
+                <div class="glass-panel rounded-xl p-6 border-l-4 border-red-500">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                            </path>
+                        </svg>
+                        Emerging Threats
+                    </h3>
+                    <ul class="space-y-3">
+                        {% for threat in latest_summary.emerging_threats %}
+                        <li class="flex items-start text-gray-300">
+                            <span class="text-red-500 mr-3 mt-1">⚠️</span>
+                            <span>{{ threat }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="text-gray-500 italic">No emerging threats detected.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right: Recommendations & Alerts -->
+            <div class="space-y-6">
+                <!-- Recommendations -->
+                <div class="glass-panel rounded-xl p-6 border-l-4 border-green-500">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Strategic Recommendations
+                    </h3>
+                    <ul class="space-y-3">
+                        {% for rec in latest_summary.recommendations %}
+                        <li class="flex items-start text-gray-300 text-sm">
+                            <span class="text-green-500 mr-3 mt-1">→</span>
+                            <span>{{ rec }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="text-gray-500 italic">No specific recommendations at this time.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Recent Alerts -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">Recent System Alerts</h3>
+                    <div class="space-y-3">
+                        {% for alert in recent_alerts %}
+                        <div
+                            class="bg-gray-800 rounded-lg p-3 border-l-2 {% if alert.severity == 'CRITICAL' %}border-red-500{% elif alert.severity == 'WARNING' %}border-yellow-500{% else %}border-blue-500{% endif %}">
+                            <div class="flex justify-between items-start">
+                                <span class="text-xs font-bold text-gray-400">{{ alert.alert_type }}</span>
+                                <span class="text-xs text-gray-500">{{ alert.detected_at|timesince }} ago</span>
+                            </div>
+                            <p class="text-sm text-gray-200 mt-1">{{ alert.title }}</p>
+                        </div>
+                        {% empty %}
+                        <p class="text-sm text-gray-500 text-center py-2">No active alerts.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="glass-panel rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">7-Day Intelligence Trends</h3>
+            <div class="relative h-64 w-full">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Fallback if no data exists yet -->
+        <div class="text-center py-20">
+            <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+            </svg>
+            <h2 class="text-2xl font-bold text-gray-300 mb-2">No Intelligence Summaries Generated Yet</h2>
+            <p class="text-gray-500 mb-6">The AI engine needs at least one report to generate a briefing.</p>
+            <a href="/api/test-ai/"
+                class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                Trigger AI Analysis Now
+            </a>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <!-- Chart.js Configuration -->
+    <script>
+        const ctx = document.getElementById('trendChart').getContext('2d');
+
+        // Pass Django context to JS safely
+        const labels = {{ chart_labels| safe }};
+        const volumes = {{ chart_volumes| safe }};
+        const critical = {{ chart_critical| safe }};
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels.length > 0 ? labels : ['No Data'],
+                datasets: [
+                    {
+                        label: 'Total Reports',
+                        data: volumes.length > 0 ? volumes : [0],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Critical Incidents',
+                        data: critical.length > 0 ? critical : [0],
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#9CA3AF', font: { size: 14 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#9CA3AF', stepSize: 1 },
+                        grid: { color: 'rgba(75, 85, 99, 0.3)' }
+                    },
+                    x: {
+                        ticks: { color: '#9CA3AF' },
+                        grid: { color: 'rgba(75, 85, 99, 0.3)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

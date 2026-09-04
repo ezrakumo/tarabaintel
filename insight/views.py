@@ -1,13 +1,18 @@
 import os
+import csv
+import io
 import requests
 from django.utils import timezone
 from django.shortcuts import render
 from django.db.models import Count
+from django.http import HttpResponse
+from django.core.mail import send_mail
+from django.conf import settings
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
-from .models import Report, FieldAgent, FieldVerification, LGA
+from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert
 from .serializers import (
     ReportSerializer, 
     FieldVerificationSerializer, 
@@ -15,7 +20,6 @@ from .serializers import (
     VerificationCompleteSerializer
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
-from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -53,18 +57,75 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
-                # AUTO-ASSIGNMENT: If AI flagged as CRITICAL, create verification task
+                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
                     FieldVerification.objects.create(
                         report=report,
                         status='PENDING'
                     )
                     print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
+                    
+                    # --- NEW: SEND FLASH EMAIL ALERT ---
+                    try:
+                        lga_name = report.lga.name if report.lga else 'Unknown'
+                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
+                        message = f"""
+URGENT INTELLIGENCE ALERT
+
+A CRITICAL threat has been reported and verified by AI.
+
+Description: {report.description}
+Location: {lga_name}
+AI Confidence: {report.ai_confidence_score}%
+Time: {report.submitted_at}
+
+Login to the Command Center immediately to review.
+"""
+                        # Send to the command center (REPLACE WITH REAL EMAILS)
+                        send_mail(
+                            subject, 
+                            message, 
+                            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], # <-- UPDATE THESE EMAILS
+                            fail_silently=True, # True prevents app crash if email isn't configured yet
+                        )
+                        print("✅ Flash email alert queued/sent successfully.")
+                    except Exception as email_error:
+                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
                 
         except Exception as e:
             print(f"❌ AI Service unavailable or crashed: {e}")
+
+    @action(detail=False, methods=['get'])
+    def export_csv(self, request):
+        """Export all reports to a CSV file for offline analysis"""
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="tarabaintel_intelligence_export.csv"'
+
+        writer = csv.writer(response)
+        # Write the header row
+        writer.writerow([
+            'Report ID', 'Submitted At', 'LGA', 'Category', 
+            'Urgency Level', 'AI Confidence', 'Description', 'Status'
+        ])
+
+        # Write the data rows
+        reports = Report.objects.all().order_by('-submitted_at')
+        for report in reports:
+            writer.writerow([
+                str(report.id),
+                report.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if report.submitted_at else '',
+                report.lga.name if report.lga else 'Unknown',
+                report.issue_category,
+                report.ai_urgency_level or 'PENDING',
+                f"{report.ai_confidence_score * 100:.1f}%" if report.ai_confidence_score else '0%',
+                report.description,
+                report.status
+            ])
+
+        return response
 
 
 class FieldVerificationViewSet(viewsets.ModelViewSet):
@@ -167,11 +228,7 @@ def test_ai_engine(request):
     """
     try:
         service = IntelligenceGenerationService()
-        
-        # 1. Generate the SITREP
         summary = service.generate_daily_sitrep()
-        
-        # 2. Check for pattern alerts
         service.check_for_alerts()
         
         if summary:
@@ -190,22 +247,15 @@ def test_ai_engine(request):
                 "status": "NO_DATA",
                 "message": "No reports found in the last 24 hours to analyze. Try submitting a new report first!"
             })
-            
     except Exception as e:
-        return Response({
-            "status": "ERROR", 
-            "message": str(e)
-        }, status=500)
+        return Response({"status": "ERROR", "message": str(e)}, status=500)
         
+
 def intelligence_briefing_dashboard(request):
     """Executive Intelligence Dashboard for Stakeholders"""
-    # Get the latest generated summary
     latest_summary = IntelligenceSummary.objects.first()
-    
-    # Get recent unacknowledged alerts
     recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
     
-    # Prepare Chart.js data (Last 7 summaries)
     summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
     
     chart_labels = []
@@ -213,7 +263,6 @@ def intelligence_briefing_dashboard(request):
     chart_critical = []
     
     for summary in summaries_history:
-        # Format date to be readable (e.g., "Sep 04")
         chart_labels.append(summary.generated_at.strftime('%b %d'))
         chart_volumes.append(summary.statistics.get('total_reports', 0))
         chart_critical.append(summary.statistics.get('critical_incidents', 0))

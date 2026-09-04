@@ -122,7 +122,68 @@ class FieldVerification(models.Model):
         return f"Verification for {self.report.id}"
     
 # --- INTELLIGENCE ANALYSIS MODELS ---
+# ==========================================
+# TARABAINSIGHT 2.0: HUMINT & REWARD SYSTEM
+# ==========================================
 
+USER_TIERS = [
+    ('CITIZEN', 'Citizen'),
+    ('VOLUNTEER', 'Vetted Volunteer'),
+    ('INFORMANT', 'Covert Informant'),
+    ('AGENT', 'Official Field Agent'),
+]
+
+TRANSACTION_TYPES = [
+    ('EARNED_SUBMISSION', 'Points Earned: Report Submitted'),
+    ('EARNED_ACTIONABLE', 'Points Earned: Intel Graded Actionable'),
+    ('EARNED_VERIFIED', 'Points Earned: Intel Physically Verified'),
+    ('REDEEMED_AIRTIME', 'Points Redeemed: Airtime/Data'),
+    ('REDEEMED_MATERIAL', 'Points Redeemed: Physical Materials'),
+    ('REDEEMED_SCHOLARSHIP', 'Points Redeemed: Scholarship/Education'),
+    ('ADMIN_ADJUSTMENT', 'Admin Manual Adjustment'),
+]
+
+class UserProfile(models.Model):
+    """Extends the default User model to handle Tiers, Points, and Covert Identities"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='intel_profile')
+    tier = models.CharField(max_length=20, choices=USER_TIERS, default='CITIZEN')
+    
+    # Gamification & Rewards
+    total_points = models.IntegerField(default=0)
+    lifetime_points = models.IntegerField(default=0)
+    
+    # Contact & Verification
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
+    
+    # Covert Settings
+    use_codename = models.BooleanField(default=False)
+    codename = models.CharField(max_length=50, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "User Profiles & Tiers"
+
+    def __str__(self):
+        name = self.codename if self.use_codename and self.codename else self.user.username
+        return f"{name} ({self.get_tier_display()}) - {self.total_points} pts"
+
+
+class RewardLedger(models.Model):
+    """Immutable ledger tracking every point earned or spent by a user"""
+    # Note: We use the string 'Report' here to prevent any top-to-bottom circular reference issues
+    user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='ledger_entries')
+    transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPES)
+    points = models.IntegerField()
+    description = models.TextField(blank=True)
+    related_report = models.ForeignKey('Report', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = "Reward Ledger"
+
+    def __str__(self):
+        return f"{self.user_profile} | {self.points} pts | {self.get_transaction_type_display()}"
 # --- INTELLIGENCE ANALYSIS MODELS ---
 
 class IntelligenceSummary(models.Model):

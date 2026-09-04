@@ -128,11 +128,17 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# --- EMAIL CONFIGURATION FOR FLASH ALERTS ---
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com' # Use smtp.sendgrid.net if using SendGrid
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your_email@gmail.com' # REPLACE WITH YOUR EMAIL
-EMAIL_HOST_PASSWORD = 'your_app_password' # REPLACE WITH YOUR APP PASSWORD (Not your regular password!)
-DEFAULT_FROM_EMAIL = 'TarabaInsight Alerts <your_email@gmail.com>'
+# --- DJANGO 6.1+ MODERN EMAIL CONFIGURATION ---
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "HOST": "smtp.gmail.com", # Or smtp.sendgrid.net
+        "PORT": 587,
+        "USERNAME": "your_email@gmail.com", # REPLACE WITH YOUR EMAIL
+        "PASSWORD": "your_app_password",    # REPLACE WITH YOUR APP PASSWORD
+        "USE_TLS": True,
+        "TIMEOUT": 10,
+    }
+}
+DEFAULT_MAILER = "default"
+DEFAULT_FROM_EMAIL = "TarabaInsight Alerts <your_email@gmail.com>"

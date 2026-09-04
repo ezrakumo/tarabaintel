@@ -222,10 +222,17 @@ def intelligence_dashboard(request):
 @api_view(['GET'])
 def test_ai_engine(request):
     """
-    Temporary endpoint to test the AI Intelligence Analyzer in production.
-    NOTE: In final production, this should be protected with @permission_classes([IsAdminUser]) 
-    or removed entirely in favor of automated background tasks (Celery).
+    Secured endpoint for automated AI Intelligence Generation.
+    Requires a secret token to execute.
     """
+    # 1. SECURITY CHECK
+    secret_token = request.GET.get('token', '')
+    expected_token = os.environ.get('AI_CRON_SECRET', 'super_secret_default_token_123')
+    
+    if secret_token != expected_token:
+        return Response({"status": "UNAUTHORIZED", "message": "Invalid secret token"}, status=403)
+
+    # 2. EXECUTE AI ENGINE
     try:
         service = IntelligenceGenerationService()
         summary = service.generate_daily_sitrep()
@@ -245,12 +252,10 @@ def test_ai_engine(request):
         else:
             return Response({
                 "status": "NO_DATA",
-                "message": "No reports found in the last 24 hours to analyze. Try submitting a new report first!"
+                "message": "No reports found in the last 24 hours to analyze."
             })
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
-        
-
 def intelligence_briefing_dashboard(request):
     """Executive Intelligence Dashboard for Stakeholders"""
     latest_summary = IntelligenceSummary.objects.first()

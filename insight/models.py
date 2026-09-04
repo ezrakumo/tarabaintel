@@ -2,6 +2,20 @@ import uuid
 from django.db import models
 from django.contrib.gis.db import models as gis_models
 from django.utils import timezone
+from django.contrib.auth.models import User
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    tier = models.CharField(max_length=20, choices=[
+        ('BEGINNER', 'Beginner'), ('INTERMEDIATE', 'Intermediate'), ('ADVANCED', 'Advanced')
+    ], default='BEGINNER')
+    total_points = models.IntegerField(default=0)
+    is_verified = models.BooleanField(default=False)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    codename = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return self.user.username
 
 class State(models.Model):
     name = models.CharField(max_length=100, unique=True)

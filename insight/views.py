@@ -19,6 +19,7 @@ from .serializers import (
     VerificationCompleteSerializer
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
+from insight.services.quality_grader import grade_and_reward_report
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -56,6 +57,13 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
+                # --- NEW: GRADE INTEL QUALITY AND AWARD POINTS (Runs for ALL reports) ---
+                try:
+                    score, pts = grade_and_reward_report(report)
+                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
+                except Exception as grading_error:
+                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
+
                 # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
                     FieldVerification.objects.create(
@@ -64,7 +72,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                     )
                     print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
                     
-                    # --- NEW: SEND FLASH EMAIL ALERT ---
+                    # --- SEND FLASH EMAIL ALERT ---
                     try:
                         lga_name = report.lga.name if report.lga else 'Unknown'
                         subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
@@ -80,13 +88,12 @@ Time: {report.submitted_at}
 
 Login to the Command Center immediately to review.
 """
-                        # Send to the command center (REPLACE WITH REAL EMAILS)
                         send_mail(
                             subject, 
                             message, 
                             getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
-                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], # <-- UPDATE THESE EMAILS
-                            fail_silently=True, # True prevents app crash if email isn't configured yet
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], 
+                            fail_silently=True, 
                         )
                         print("✅ Flash email alert queued/sent successfully.")
                     except Exception as email_error:

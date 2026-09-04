@@ -70,19 +70,21 @@
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Critical Incidents</p>
                 <p class="text-3xl font-bold text-red-500 mt-1">{{
-                    latest_summary.statistics.critical_incidents|default:"0" }}</p>
+                    latest_summary.statistics.critical_incidents|default:"0" }}
+                </p>
             </div>
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Hotspots Identified</p>
                 <p class="text-3xl font-bold text-yellow-500 mt-1">{{
-                    latest_summary.statistics.hotspots_identified|default:"0" }}</p>
+                    latest_summary.statistics.hotspots_identified|default:"0"
+                    }}</p>
             </div>
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Overall Trend</p>
                 <p class="text-3xl font-bold mt-1 
-                        {% if latest_summary.statistics.trend == 'INCREASING' %}text-red-500
-                        {% elif latest_summary.statistics.trend == 'DECREASING' %}text-green-500
-                        {% else %}text-blue-400{% endif %}">
+                    {% if latest_summary.statistics.trend == 'INCREASING' %}text-red-500
+                    {% elif latest_summary.statistics.trend == 'DECREASING' %}text-green-500
+                    {% else %}text-blue-400{% endif %}">
                     {{ latest_summary.statistics.trend|default:"STABLE" }}
                 </p>
             </div>

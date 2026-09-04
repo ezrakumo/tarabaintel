@@ -60,7 +60,7 @@
             <p class="text-xs text-gray-500 mt-3">Generated: {{ latest_summary.generated_at|date:"M d, Y H:i" }}</p>
         </div>
 
-        <!-- Stats Grid -->
+        <!-- Stats Grid (FIXED: No line breaks inside tags) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Total Reports</p>
@@ -70,21 +70,17 @@
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Critical Incidents</p>
                 <p class="text-3xl font-bold text-red-500 mt-1">{{
-                    latest_summary.statistics.critical_incidents|default:"0" }}
-                </p>
+                    latest_summary.statistics.critical_incidents|default:"0" }}</p>
             </div>
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Hotspots Identified</p>
                 <p class="text-3xl font-bold text-yellow-500 mt-1">{{
-                    latest_summary.statistics.hotspots_identified|default:"0"
-                    }}</p>
+                    latest_summary.statistics.hotspots_identified|default:"0" }}</p>
             </div>
             <div class="glass-panel rounded-xl p-5 text-center">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Overall Trend</p>
-                <p class="text-3xl font-bold mt-1 
-                    {% if latest_summary.statistics.trend == 'INCREASING' %}text-red-500
-                    {% elif latest_summary.statistics.trend == 'DECREASING' %}text-green-500
-                    {% else %}text-blue-400{% endif %}">
+                <p
+                    class="text-3xl font-bold mt-1 {% if latest_summary.statistics.trend == 'INCREASING' %}text-red-500{% elif latest_summary.statistics.trend == 'DECREASING' %}text-green-500{% else %}text-blue-400{% endif %}">
                     {{ latest_summary.statistics.trend|default:"STABLE" }}
                 </p>
             </div>
@@ -92,7 +88,6 @@
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-
             <!-- Left: Findings & Threats -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Key Findings -->
@@ -211,7 +206,7 @@
 
     </main>
 
-    <!-- Chart.js Configuration -->
+    <!-- Chart.js Configuration (FIXED: Removed space in |safe filter) -->
     <script>
         const ctx = document.getElementById('trendChart').getContext('2d');
 

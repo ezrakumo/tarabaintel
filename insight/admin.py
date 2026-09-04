@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.gis import admin as gis_admin
 from .models import State, LGA, Ward, PollingUnit, Report,FieldAgent, FieldVerification
+from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert, UserProfile, RewardLedger
 
 # ==========================================
 # Geographic Models (With Interactive Map Views)
@@ -55,3 +56,16 @@ class FieldAgentAdmin(admin.ModelAdmin):
 class FieldVerificationAdmin(admin.ModelAdmin):
     list_display = ('report', 'assigned_agent', 'status', 'assigned_at', 'completed_at')
     list_filter = ('status', 'is_verified')
+    
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'tier', 'total_points', 'is_verified', 'phone_number')
+    list_filter = ('tier', 'is_verified')
+    search_fields = ('user__username', 'phone_number', 'codename')
+
+@admin.register(RewardLedger)
+class RewardLedgerAdmin(admin.ModelAdmin):
+    list_display = ('user_profile', 'points', 'transaction_type', 'related_report', 'created_at')
+    list_filter = ('transaction_type', 'created_at')
+    search_fields = ('user_profile__user__username', 'description')
+    readonly_fields = ('created_at',)

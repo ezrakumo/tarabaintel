@@ -12,6 +12,31 @@
             background: rgba(31, 41, 55, 0.7);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(75, 85, 99, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        /* Premium Hover Lift Effect for Cards */
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        /* Smooth Fade-In Animation on Page Load */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.7s ease-out forwards;
         }
     </style>
 </head>
@@ -42,7 +67,7 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
         {% if latest_summary %}
         <!-- Executive Briefing Banner -->
         <div class="glass-panel rounded-xl p-6 mb-8 border-l-4 border-blue-500">
@@ -59,19 +84,19 @@
 
         <!-- Stats Grid (Using Bulletproof Flat Variables) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="glass-panel rounded-xl p-5 text-center">
+            <div class="glass-panel rounded-xl p-5 text-center hover-lift cursor-pointer">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Total Reports</p>
                 <p class="text-3xl font-bold text-white mt-1">{{ total_reports|default:"0" }}</p>
             </div>
-            <div class="glass-panel rounded-xl p-5 text-center">
+            <div class="glass-panel rounded-xl p-5 text-center hover-lift cursor-pointer">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Critical Incidents</p>
                 <p class="text-3xl font-bold text-red-500 mt-1">{{ critical_incidents|default:"0" }}</p>
             </div>
-            <div class="glass-panel rounded-xl p-5 text-center">
+            <div class="glass-panel rounded-xl p-5 text-center hover-lift cursor-pointer">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Hotspots Identified</p>
                 <p class="text-3xl font-bold text-yellow-500 mt-1">{{ hotspots_identified|default:"0" }}</p>
             </div>
-            <div class="glass-panel rounded-xl p-5 text-center">
+            <div class="glass-panel rounded-xl p-5 text-center hover-lift cursor-pointer">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Overall Trend</p>
                 <p
                     class="text-3xl font-bold mt-1 {% if trend == 'INCREASING' %}text-red-500{% elif trend == 'DECREASING' %}text-green-500{% else %}text-blue-400{% endif %}">

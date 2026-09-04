@@ -663,22 +663,37 @@ class _CitizenReportScreenState extends State<CitizenReportScreen> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              if (_imageBytes == null)
+                                                            if (_imageBytes == null)
                                 GestureDetector(
                                   onTap: _pickImage,
                                   child: Container(
-                                    height: 150,
+                                    height: 160,
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.blue.shade300, width: 2, style: BorderStyle.solid),
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.blue.shade300, 
+                                        width: 2, 
+                                        style: BorderStyle.solid,
+                                      ),
                                     ),
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.add_photo_alternate, size: 48, color: Colors.blue.shade300),
-                                        const SizedBox(height: 8),
-                                        Text('Tap to attach photo', style: TextStyle(color: Colors.blue.shade400)),
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.shade100,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(Icons.cloud_upload_outlined, size: 36, color: Colors.blue.shade700),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text('Tap to upload photo evidence', 
+                                          style: TextStyle(color: Colors.blue.shade800, fontWeight: FontWeight.w600, fontSize: 15)),
+                                        const SizedBox(height: 4),
+                                        Text('Supports JPG, PNG up to 10MB', 
+                                          style: TextStyle(color: Colors.blue.shade400, fontSize: 12)),
                                       ],
                                     ),
                                   ),

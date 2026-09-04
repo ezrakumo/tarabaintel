@@ -4,8 +4,9 @@ from django.utils import timezone
 from django.shortcuts import render
 from django.db.models import Count
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
+
 from .models import Report, FieldAgent, FieldVerification, LGA
 from .serializers import (
     ReportSerializer, 
@@ -13,6 +14,8 @@ from .serializers import (
     VerificationClaimSerializer, 
     VerificationCompleteSerializer
 )
+from insight.services.intelligence_service import IntelligenceGenerationService
+
 
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
@@ -111,6 +114,7 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 def intelligence_dashboard(request):
     """Real-time intelligence dashboard view - Bulletproof Version"""
     reports = Report.objects.all().order_by('-submitted_at')[:50]
@@ -139,7 +143,7 @@ def intelligence_dashboard(request):
                     'confidence': round(report.ai_confidence_score * 100, 1) if report.ai_confidence_score else 0.0,
                     'lga': lga_name,
                     'submitted': report.submitted_at.strftime('%b %d, %Y %H:%M') if report.submitted_at else 'Unknown',
-                    'image_base64': report.image_base64 or '', # <-- ADD THIS LINE
+                    'image_base64': report.image_base64 or '',
                 })
             except Exception:
                 continue 
@@ -152,13 +156,14 @@ def intelligence_dashboard(request):
     
     return render(request, 'dashboard_v2.html', context)
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from insight.services.intelligence_service import IntelligenceGenerationService
 
 @api_view(['GET'])
 def test_ai_engine(request):
-    """Temporary endpoint to test the AI Intelligence Analyzer in production"""
+    """
+    Temporary endpoint to test the AI Intelligence Analyzer in production.
+    NOTE: In final production, this should be protected with @permission_classes([IsAdminUser]) 
+    or removed entirely in favor of automated background tasks (Celery).
+    """
     try:
         service = IntelligenceGenerationService()
         
@@ -190,60 +195,3 @@ def test_ai_engine(request):
             "status": "ERROR", 
             "message": str(e)
         }, status=500)
-
-from django.core.management import call_command
-import io
-
-@api_view(['GET'])
-def run_migrations_endpoint(request):
-    """Temporary endpoint to run makemigrations and migrate in production"""
-    try:
-        # Capture the output of the commands
-        out = io.StringIO()
-        
-        # 1. Make migrations
-        call_command('makemigrations', stdout=out)
-        makemigrations_output = out.getvalue()
-        
-        # 2. Run migrations
-        out = io.StringIO() # Reset the buffer
-        call_command('migrate', stdout=out)
-        migrate_output = out.getvalue()
-        
-        return Response({
-            "status": "SUCCESS",
-            "makemigrations_output": makemigrations_output,
-            "migrate_output": migrate_output
-        })
-    except Exception as e:
-        return Response({
-            "status": "ERROR", 
-            "message": str(e)
-        }, status=500)
-        
-@api_view(['GET'])
-def fix_missing_tables(request):
-    """Temporary endpoint to force-create missing database tables in production"""
-    from django.db import connection
-    from insight.models import IntelligenceSummary, PatternAlert
-    
-    results = []
-    
-    # Use Django's schema editor to physically create the tables
-    with connection.schema_editor() as schema_editor:
-        try:
-            schema_editor.create_model(IntelligenceSummary)
-            results.append("✅ Successfully created 'insight_intelligencesummary' table.")
-        except Exception as e:
-            results.append(f"⚠️ IntelligenceSummary table issue: {str(e)}")
-            
-        try:
-            schema_editor.create_model(PatternAlert)
-            results.append("✅ Successfully created 'insight_patternalert' table.")
-        except Exception as e:
-            results.append(f"⚠️ PatternAlert table issue: {str(e)}")
-            
-    return Response({
-        "status": "DONE",
-        "results": results
-    })

@@ -274,3 +274,26 @@ def intelligence_briefing_dashboard(request):
     }
     
     return render(request, 'intelligence_dashboard.html', context)
+
+from django.core.management import call_command
+import io
+
+@api_view(['GET'])
+def run_migrations_temp(request):
+    """TEMPORARY: Run migrations in production. DELETE THIS AFTER USE."""
+    try:
+        out = io.StringIO()
+        call_command('makemigrations', stdout=out)
+        makemigrations_output = out.getvalue()
+        
+        out = io.StringIO()
+        call_command('migrate', stdout=out)
+        migrate_output = out.getvalue()
+        
+        return Response({
+            "status": "SUCCESS",
+            "makemigrations": makemigrations_output,
+            "migrate": migrate_output
+        })
+    except Exception as e:
+        return Response({"status": "ERROR", "message": str(e)}, status=500)

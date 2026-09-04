@@ -22,6 +22,7 @@ from .serializers import (
 from insight.services.intelligence_service import IntelligenceGenerationService
 
 
+
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
@@ -176,47 +177,39 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-def intelligence_dashboard(request):
-    """Real-time intelligence dashboard view - Bulletproof Version"""
-    reports = Report.objects.all().order_by('-submitted_at')[:50]
+def intelligence_briefing_dashboard(request):
+    """Executive Intelligence Dashboard for Stakeholders"""
+    latest_summary = IntelligenceSummary.objects.first()
+    recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
     
-    stats = {
-        'total_reports': Report.objects.count(),
-        'critical_count': Report.objects.filter(ai_urgency_level='CRITICAL').count(),
-        'high_count': Report.objects.filter(ai_urgency_level='HIGH').count(),
-        'verified_count': Report.objects.filter(status='VERIFIED').count(),
-    }
+    summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
     
-    map_data = []
-    for report in reports:
-        if report.location:
-            try:
-                coords = report.location.coords
-                lga_name = report.lga.name if report.lga else 'Unknown'
-                
-                map_data.append({
-                    'id': str(report.id),
-                    'lng': float(coords[0]),
-                    'lat': float(coords[1]),
-                    'description': report.description[:150] if report.description else 'No description',
-                    'category': report.ai_suggested_category or report.issue_category or 'General',
-                    'urgency': report.ai_urgency_level or 'MEDIUM',
-                    'confidence': round(report.ai_confidence_score * 100, 1) if report.ai_confidence_score else 0.0,
-                    'lga': lga_name,
-                    'submitted': report.submitted_at.strftime('%b %d, %Y %H:%M') if report.submitted_at else 'Unknown',
-                    'image_base64': report.image_base64 or '',
-                })
-            except Exception:
-                continue 
-            
+    chart_labels = []
+    chart_volumes = []
+    chart_critical = []
+    
+    for summary in summaries_history:
+        chart_labels.append(summary.generated_at.strftime('%b %d'))
+        chart_volumes.append(summary.statistics.get('total_reports', 0))
+        chart_critical.append(summary.statistics.get('critical_incidents', 0))
+        
+    # 🛡️ BULLETPROOF FIX: Extract JSONField data into flat context variables
+    stats = latest_summary.statistics if latest_summary else {}
+    
     context = {
-        'stats': stats,
-        'map_data': map_data,
-        'reports': reports,
+        'latest_summary': latest_summary,
+        'recent_alerts': recent_alerts,
+        'chart_labels': chart_labels,
+        'chart_volumes': chart_volumes,
+        'chart_critical': chart_critical,
+        # Flat variables guarantee perfect template rendering
+        'total_reports': stats.get('total_reports', 0),
+        'critical_incidents': stats.get('critical_incidents', 0),
+        'hotspots_identified': stats.get('hotspots_identified', 0),
+        'trend': stats.get('trend', 'STABLE'),
     }
     
-    return render(request, 'dashboard_v2.html', context)
+    return render(request, 'intelligence_dashboard.html', context)
 
 
 @api_view(['GET'])

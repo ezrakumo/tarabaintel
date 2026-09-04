@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from accounts.views import RegisterView, ProfileView
-from insight.views import intelligence_dashboard # Keep your existing import
+from insight.views import intelligence_briefing_dashboard
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -18,5 +18,5 @@ urlpatterns = [
     path('api/auth/profile/', ProfileView.as_view(), name='profile'),
     
     # Dashboard URL
-    path('', intelligence_dashboard, name='dashboard'),
+    path('', intelligence_briefing_dashboard, name='dashboard'),
 ]

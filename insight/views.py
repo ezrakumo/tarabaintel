@@ -1,6 +1,5 @@
 import os
 import csv
-import io
 import requests
 from django.utils import timezone
 from django.shortcuts import render
@@ -20,7 +19,6 @@ from .serializers import (
     VerificationCompleteSerializer
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
-
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -177,6 +175,7 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 def intelligence_briefing_dashboard(request):
     """Executive Intelligence Dashboard for Stakeholders"""
     latest_summary = IntelligenceSummary.objects.first()
@@ -247,56 +246,5 @@ def test_ai_engine(request):
                 "status": "NO_DATA",
                 "message": "No reports found in the last 24 hours to analyze."
             })
-    except Exception as e:
-        return Response({"status": "ERROR", "message": str(e)}, status=500)
-def intelligence_briefing_dashboard(request):
-    """Executive Intelligence Dashboard for Stakeholders"""
-    latest_summary = IntelligenceSummary.objects.first()
-    recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
-    
-    summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
-    
-    chart_labels = []
-    chart_volumes = []
-    chart_critical = []
-    
-    for summary in summaries_history:
-        chart_labels.append(summary.generated_at.strftime('%b %d'))
-        chart_volumes.append(summary.statistics.get('total_reports', 0))
-        chart_critical.append(summary.statistics.get('critical_incidents', 0))
-        
-    context = {
-        'latest_summary': latest_summary,
-        'recent_alerts': recent_alerts,
-        'chart_labels': chart_labels,
-        'chart_volumes': chart_volumes,
-        'chart_critical': chart_critical,
-    }
-    
-    return render(request, 'intelligence_dashboard.html', context)
-
-from django.core.management import call_command
-import io
-
-from django.core.management import call_command
-import io
-
-@api_view(['GET'])
-def run_migrations_temp(request):
-    """TEMPORARY: Run migrations in production. DELETE THIS AFTER USE."""
-    try:
-        out = io.StringIO()
-        call_command('makemigrations', stdout=out)
-        makemigrations_output = out.getvalue()
-        
-        out = io.StringIO()
-        call_command('migrate', stdout=out)
-        migrate_output = out.getvalue()
-        
-        return Response({
-            "status": "SUCCESS",
-            "makemigrations": makemigrations_output,
-            "migrate": migrate_output
-        })
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)

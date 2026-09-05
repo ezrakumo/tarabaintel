@@ -4,6 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Cache-busting meta tags to prevent browser caching of old HTML -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>TarabaInsight | Executive Briefing Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,14 +19,12 @@
             transition: all 0.3s ease;
         }
 
-        /* Premium Hover Lift Effect for Cards */
         .hover-lift:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
             border-color: rgba(59, 130, 246, 0.5);
         }
 
-        /* Smooth Fade-In Animation on Page Load */
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -42,6 +44,8 @@
 </head>
 
 <body class="bg-gray-950 text-gray-100 min-h-screen font-sans">
+
+    <!-- Header -->
     <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -68,6 +72,7 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+
         {% if latest_summary %}
         <!-- Executive Briefing Banner -->
         <div class="glass-panel rounded-xl p-6 mb-8 border-l-4 border-blue-500">
@@ -82,7 +87,7 @@
             <p class="text-xs text-gray-500 mt-3">Generated: {{ latest_summary.generated_at|date:"M d, Y H:i" }}</p>
         </div>
 
-        <!-- Stats Grid (Using Bulletproof Flat Variables) -->
+        <!-- Stats Grid (USING FLAT VARIABLES FROM views.py) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="glass-panel rounded-xl p-5 text-center hover-lift cursor-pointer">
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Total Reports</p>
@@ -100,14 +105,17 @@
                 <p class="text-gray-400 text-sm uppercase tracking-wider">Overall Trend</p>
                 <p
                     class="text-3xl font-bold mt-1 {% if trend == 'INCREASING' %}text-red-500{% elif trend == 'DECREASING' %}text-green-500{% else %}text-blue-400{% endif %}">
-                    {{ trend|default:"STABLE" }}</p>
+                    {{ trend|default:"STABLE" }}
+                </p>
             </div>
         </div>
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <!-- Left Column -->
+
+            <!-- Left: Findings & Threats -->
             <div class="lg:col-span-2 space-y-6">
+                <!-- Key Findings -->
                 <div class="glass-panel rounded-xl p-6">
                     <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,14 +127,17 @@
                     </h3>
                     <ul class="space-y-3">
                         {% for finding in latest_summary.key_findings %}
-                        <li class="flex items-start text-gray-300"><span class="text-blue-500 mr-3 mt-1"></span><span>{{
-                                finding }}</span></li>
+                        <li class="flex items-start text-gray-300">
+                            <span class="text-blue-500 mr-3 mt-1">▹</span>
+                            <span>{{ finding }}</span>
+                        </li>
                         {% empty %}
                         <li class="text-gray-500 italic">No specific findings generated for this period.</li>
                         {% endfor %}
                     </ul>
                 </div>
 
+                <!-- Emerging Threats -->
                 <div class="glass-panel rounded-xl p-6 border-l-4 border-red-500">
                     <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,8 +149,10 @@
                     </h3>
                     <ul class="space-y-3">
                         {% for threat in latest_summary.emerging_threats %}
-                        <li class="flex items-start text-gray-300"><span
-                                class="text-red-500 mr-3 mt-1">⚠️</span><span>{{ threat }}</span></li>
+                        <li class="flex items-start text-gray-300">
+                            <span class="text-red-500 mr-3 mt-1">⚠️</span>
+                            <span>{{ threat }}</span>
+                        </li>
                         {% empty %}
                         <li class="text-gray-500 italic">No emerging threats detected.</li>
                         {% endfor %}
@@ -147,8 +160,9 @@
                 </div>
             </div>
 
-            <!-- Right Column -->
+            <!-- Right: Recommendations & Alerts -->
             <div class="space-y-6">
+                <!-- Recommendations -->
                 <div class="glass-panel rounded-xl p-6 border-l-4 border-green-500">
                     <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,14 +173,17 @@
                     </h3>
                     <ul class="space-y-3">
                         {% for rec in latest_summary.recommendations %}
-                        <li class="flex items-start text-gray-300 text-sm"><span
-                                class="text-green-500 mr-3 mt-1">→</span><span>{{ rec }}</span></li>
+                        <li class="flex items-start text-gray-300 text-sm">
+                            <span class="text-green-500 mr-3 mt-1">→</span>
+                            <span>{{ rec }}</span>
+                        </li>
                         {% empty %}
                         <li class="text-gray-500 italic">No specific recommendations at this time.</li>
                         {% endfor %}
                     </ul>
                 </div>
 
+                <!-- Recent Alerts -->
                 <div class="glass-panel rounded-xl p-6">
                     <h3 class="text-lg font-semibold text-white mb-4">Recent System Alerts</h3>
                     <div class="space-y-3">
@@ -190,10 +207,13 @@
         <!-- Chart Section -->
         <div class="glass-panel rounded-xl p-6">
             <h3 class="text-lg font-semibold text-white mb-4">7-Day Intelligence Trends</h3>
-            <div class="relative h-64 w-full"><canvas id="trendChart"></canvas></div>
+            <div class="relative h-64 w-full">
+                <canvas id="trendChart"></canvas>
+            </div>
         </div>
 
         {% else %}
+        <!-- Fallback if no data exists yet -->
         <div class="text-center py-20">
             <svg class="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -202,15 +222,20 @@
             </svg>
             <h2 class="text-2xl font-bold text-gray-300 mb-2">No Intelligence Summaries Generated Yet</h2>
             <p class="text-gray-500 mb-6">The AI engine needs at least one report to generate a briefing.</p>
-            <a href="/api/test-ai/"
-                class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">Trigger
-                AI Analysis Now</a>
+            <a href="/api/test-ai/?token={{ request.GET.token|default:'super_secret_default_token_123' }}"
+                class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                Trigger AI Analysis Now
+            </a>
         </div>
         {% endif %}
+
     </main>
 
+    <!-- Chart.js Configuration -->
     <script>
         const ctx = document.getElementById('trendChart').getContext('2d');
+
+        // Pass Django context to JS safely
         const labels = {{ chart_labels| safe }};
         const volumes = {{ chart_volumes| safe }};
         const critical = {{ chart_critical| safe }};

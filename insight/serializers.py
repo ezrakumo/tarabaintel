@@ -1,52 +1,149 @@
 from rest_framework import serializers
-from django.contrib.gis.geos import Point, GEOSGeometry
-from .models import Report, FieldAgent, FieldVerification
+from .models import (
+    Report, FieldAgent, FieldVerification, LGA,
+    UserProfile, RewardLedger, RewardCatalog, Redemption
+)
+
+
+# ==========================================
+# CORE SERIALIZERS
+# ==========================================
+
+class LGASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LGA
+        fields = ['id', 'name', 'state', 'population']
+
 
 class ReportSerializer(serializers.ModelSerializer):
+    lga_name = serializers.CharField(source='lga.name', read_only=True, default='Unknown')
+
     class Meta:
         model = Report
-        fields = '__all__'
-        
-        read_only_fields = ['ai_suggested_category', 'ai_confidence_score', 
-                           'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities']
+        fields = [
+            'id', 'description', 'issue_category', 'status',
+            'location', 'lga', 'lga_name', 'image_base64',
+            'submitted_at', 'submitted_by',
+            'ai_suggested_category', 'ai_confidence_score',
+            'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities',
+            'is_covert', 'intel_quality_score', 'points_awarded',
+            'acknowledgment_sent'
+        ]
+        read_only_fields = [
+            'id', 'submitted_at', 'ai_suggested_category',
+            'ai_confidence_score', 'ai_sentiment', 'ai_urgency_level',
+            'ai_extracted_entities', 'intel_quality_score',
+            'points_awarded', 'acknowledgment_sent'
+        ]
 
-    # --- THIS IS THE MAGIC FIX ---
-    def create(self, validated_data):
-        location_data = validated_data.pop('location', None)
-        
-        if location_data:
-            # If the API sends a dictionary (GeoJSON)
-            if isinstance(location_data, dict):
-                coords = location_data.get('coordinates')
-                validated_data['location'] = Point(coords[0], coords[1], srid=4326)
-            # If the API sends a string (WKT)
-            elif isinstance(location_data, str):
-                validated_data['location'] = GEOSGeometry(location_data, srid=4326)
-                
-        return Report.objects.create(**validated_data)
 
 class FieldAgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldAgent
-        fields = ['id', 'agent_id', 'phone_number', 'assigned_lgas', 'is_active']
+        fields = ['id', 'agent_id', 'name', 'is_active', 'assigned_lga']
+
 
 class FieldVerificationSerializer(serializers.ModelSerializer):
-    report = ReportSerializer(read_only=True)
-    assigned_agent = FieldAgentSerializer(read_only=True)
-    
     class Meta:
         model = FieldVerification
         fields = [
-            'id', 'report', 'assigned_agent', 'verification_notes', 
-            'verification_photos', 'is_verified', 'verified_at', 
-            'assigned_at', 'claimed_at', 'completed_at', 'status'
+            'id', 'report', 'assigned_agent', 'status',
+            'assigned_at', 'claimed_at', 'verified_at',
+            'notes', 'is_valid'
         ]
-        read_only_fields = ['id', 'assigned_at', 'claimed_at', 'completed_at', 'verified_at']
+        read_only_fields = ['id', 'assigned_at', 'claimed_at', 'verified_at']
+
 
 class VerificationClaimSerializer(serializers.Serializer):
-    agent_id = serializers.CharField(max_length=50)
+    agent_id = serializers.CharField()
+
 
 class VerificationCompleteSerializer(serializers.Serializer):
-    agent_id = serializers.CharField(max_length=50)
+    agent_id = serializers.CharField()
     is_valid = serializers.BooleanField()
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+# ==========================================
+# TARABAINSIGHT 2.0: REWARD SERIALIZERS
+# ==========================================
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id', 'username', 'email', 'tier', 'total_points',
+            'lifetime_points', 'phone_number', 'is_verified',
+            'use_codename', 'codename'
+        ]
+        read_only_fields = ['tier', 'total_points', 'lifetime_points', 'is_verified']
+
+
+class RewardLedgerSerializer(serializers.ModelSerializer):
+    transaction_type_display = serializers.CharField(
+        source='get_transaction_type_display',
+        read_only=True
+    )
+    related_report_id = serializers.UUIDField(
+        source='related_report.id',
+        read_only=True,
+        allow_null=True
+    )
+
+    class Meta:
+        model = RewardLedger
+        fields = [
+            'id', 'transaction_type', 'transaction_type_display',
+            'points', 'description', 'related_report_id', 'created_at'
+        ]
+
+
+class RewardCatalogSerializer(serializers.ModelSerializer):
+    is_available = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = RewardCatalog
+        fields = [
+            'id', 'title', 'description', 'category',
+            'points_required', 'min_tier_required',
+            'quantity_available', 'is_available'
+        ]
+
+
+class RedemptionSerializer(serializers.ModelSerializer):
+    reward_title = serializers.CharField(source='reward.title', read_only=True)
+    reward_category = serializers.CharField(source='reward.category', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Redemption
+        fields = [
+            'id', 'reward', 'reward_title', 'reward_category',
+            'points_deducted', 'status', 'status_display',
+            'delivery_details', 'admin_review_notes',
+            'created_at', 'reviewed_at', 'fulfilled_at'
+        ]
+        read_only_fields = [
+            'points_deducted', 'status', 'admin_review_notes',
+            'reviewed_at', 'fulfilled_at'
+        ]
+
+
+class RedeemRewardSerializer(serializers.Serializer):
+    reward_id = serializers.IntegerField()
+    delivery_details = serializers.CharField(required=False, allow_blank=True)
+
+
+class MyReportSerializer(serializers.ModelSerializer):
+    lga_name = serializers.CharField(source='lga.name', read_only=True, default='Unknown')
+
+    class Meta:
+        model = Report
+        fields = [
+            'id', 'submitted_at', 'lga_name', 'issue_category',
+            'intel_quality_score', 'points_awarded', 'status',
+            'ai_urgency_level', 'ai_confidence_score'
+        ]

@@ -255,3 +255,7 @@ def test_ai_engine(request):
             })
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
+    
+def rewards_dashboard_page(request):
+    """Renders the frontend Rewards Dashboard page"""
+    return render(request, 'rewards_dashboard.html')

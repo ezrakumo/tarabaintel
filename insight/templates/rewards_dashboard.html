@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarabaInsight | My Rewards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .points-glow {
+            text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.7s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-yellow-500 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">TARABA INSIGHT</h1>
+                    <p class="text-xs text-gray-400">Rewards & Recognition Center</p>
+                </div>
+            </div>
+            <a href="/api/briefing/" class="text-sm text-blue-400 hover:text-blue-300 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Briefing
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass-panel rounded-xl p-6 text-center hover-lift">
+                <p class="text-gray-400 text-sm uppercase tracking-wider mb-2">Available Points</p>
+                <p id="total-points" class="text-5xl font-bold text-yellow-400 points-glow">0</p>
+                <p class="text-xs text-gray-500 mt-2">Ready to redeem</p>
+            </div>
+            <div class="glass-panel rounded-xl p-6 text-center hover-lift">
+                <p class="text-gray-400 text-sm uppercase tracking-wider mb-2">Lifetime Earned</p>
+                <p id="lifetime-points" class="text-5xl font-bold text-green-400">0</p>
+                <p class="text-xs text-gray-500 mt-2">Total contribution</p>
+            </div>
+            <div class="glass-panel rounded-xl p-6 text-center hover-lift">
+                <p class="text-gray-400 text-sm uppercase tracking-wider mb-2">Next Tier</p>
+                <p id="next-tier" class="text-2xl font-bold text-purple-400">—</p>
+                <p id="points-to-next" class="text-xs text-gray-500 mt-2">0 pts needed</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Transactions & Redemptions -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Recent Transactions -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                            </path>
+                        </svg>
+                        Recent Transactions
+                    </h3>
+                    <div id="transactions-list" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">Loading transactions...</p>
+                    </div>
+                </div>
+
+                <!-- Active Redemptions -->
+                <div class="glass-panel rounded-xl p-6 border-l-4 border-blue-500">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        Active Redemptions
+                    </h3>
+                    <div id="redemptions-list" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">No active redemptions</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Available Rewards -->
+            <div class="space-y-6">
+                <div class="glass-panel rounded-xl p-6 border-l-4 border-green-500">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7">
+                            </path>
+                        </svg>
+                        Available Rewards
+                    </h3>
+                    <div id="rewards-list" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">Loading rewards...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Redeem Modal -->
+    <div id="redeem-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="glass-panel rounded-xl p-6 max-w-md w-full border border-yellow-500/30">
+            <h3 class="text-lg font-semibold text-white mb-4">Confirm Redemption</h3>
+            <div id="redeem-details" class="text-gray-300 mb-4"></div>
+            <textarea id="delivery-details" placeholder="Delivery details (Phone number, address, bank details, etc.)"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white mb-4 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                rows="3"></textarea>
+            <div class="flex space-x-3">
+                <button onclick="closeRedeemModal()"
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition">Cancel</button>
+                <button onclick="confirmRedeem()"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition">Confirm
+                    Redeem</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedRewardId = null;
+
+        // Utility to get CSRF token for POST requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/rewards/dashboard/', {
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (response.status === 403 || response.status === 401) {
+                    document.body.innerHTML = `
+                        <div class="min-h-screen flex items-center justify-center">
+                            <div class="glass-panel rounded-xl p-8 text-center">
+                                <h2 class="text-2xl font-bold text-white mb-4">Authentication Required</h2>
+                                <p class="text-gray-400 mb-6">Please log in to view your rewards dashboard.</p>
+                                <a href="/admin/" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">Go to Login</a>
+                            </div>
+                        </div>`;
+                    return;
+                }
+
+                const data = await response.json();
+                renderDashboard(data);
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+        }
+
+        function renderDashboard(data) {
+            // Stats
+            document.getElementById('total-points').textContent = data.profile.total_points.toLocaleString();
+            document.getElementById('lifetime-points').textContent = data.profile.lifetime_points.toLocaleString();
+
+            if (data.next_tier) {
+                document.getElementById('next-tier').textContent = data.next_tier;
+                document.getElementById('points-to-next').textContent = `${data.points_to_next_tier} pts needed`;
+            } else {
+                document.getElementById('next-tier').textContent = 'MAX TIER';
+                document.getElementById('points-to-next').textContent = 'Highest tier achieved!';
+            }
+
+            // Transactions
+            const txList = document.getElementById('transactions-list');
+            if (data.recent_transactions.length === 0) {
+                txList.innerHTML = '<p class="text-gray-500 text-center py-4">No transactions yet. Submit intel to earn points!</p>';
+            } else {
+                txList.innerHTML = data.recent_transactions.map(tx => `
+                    <div class="bg-gray-800 rounded-lg p-3 border-l-2 ${tx.points > 0 ? 'border-green-500' : 'border-red-500'}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-semibold text-white">${tx.transaction_type_display}</p>
+                                <p class="text-xs text-gray-400 mt-1">${tx.description}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold ${tx.points > 0 ? 'text-green-400' : 'text-red-400'}">
+                                    ${tx.points > 0 ? '+' : ''}${tx.points}
+                                </p>
+                                <p class="text-xs text-gray-500">${new Date(tx.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Redemptions
+            const redList = document.getElementById('redemptions-list');
+            if (data.active_redemptions.length === 0) {
+                redList.innerHTML = '<p class="text-gray-500 text-center py-4">No active redemptions</p>';
+            } else {
+                redList.innerHTML = data.active_redemptions.map(r => `
+                    <div class="bg-gray-800 rounded-lg p-3 border-l-2 border-blue-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-semibold text-white">${r.reward_title}</p>
+                                <p class="text-xs text-gray-400">${r.reward_category}</p>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded ${r.status === 'PENDING' ? 'bg-yellow-900 text-yellow-300' :
+                        r.status === 'APPROVED' ? 'bg-blue-900 text-blue-300' :
+                            'bg-gray-700 text-gray-300'
+                    }">${r.status}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">-${r.points_deducted} pts • ${new Date(r.created_at).toLocaleDateString()}</p>
+                    </div>
+                `).join('');
+            }
+
+            // Rewards
+            const rewardsList = document.getElementById('rewards-list');
+            if (data.affordable_rewards.length === 0) {
+                rewardsList.innerHTML = '<p class="text-gray-500 text-center py-4">Earn more points to unlock rewards!</p>';
+            } else {
+                rewardsList.innerHTML = data.affordable_rewards.map(r => `
+                    <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 cursor-pointer transition border border-transparent hover:border-yellow-500/50" onclick="openRedeemModal(${r.id}, '${r.title}', ${r.points_required})">
+                        <div class="flex justify-between items-start mb-1">
+                            <p class="text-sm font-semibold text-white">${r.title}</p>
+                            <span class="text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded">${r.points_required} pts</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-2">${r.description}</p>
+                        <p class="text-xs text-yellow-500 font-medium">Click to redeem →</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function openRedeemModal(id, title, points) {
+            selectedRewardId = id;
+            document.getElementById('redeem-details').innerHTML = `
+                <p class="font-semibold text-white text-lg">${title}</p>
+                <p class="text-yellow-400 mt-2">Cost: ${points} points</p>
+                <p class="text-gray-400 text-sm mt-1">Your balance: ${document.getElementById('total-points').textContent} pts</p>
+            `;
+            document.getElementById('redeem-modal').classList.remove('hidden');
+        }
+
+        function closeRedeemModal() {
+            document.getElementById('redeem-modal').classList.add('hidden');
+            document.getElementById('delivery-details').value = '';
+            selectedRewardId = null;
+        }
+
+        async function confirmRedeem() {
+            const deliveryDetails = document.getElementById('delivery-details').value;
+            const btn = document.querySelector('button[onclick="confirmRedeem()"]');
+            btn.textContent = 'Processing...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/rewards/redemptions/', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        reward_id: selectedRewardId,
+                        delivery_details: deliveryDetails
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Redemption submitted successfully! An admin will review it shortly.');
+                    closeRedeemModal();
+                    loadDashboard(); // Refresh UI
+                } else {
+                    alert('❌ ' + (data.error || 'Redemption failed'));
+                }
+            } catch (error) {
+                alert(' Network error. Please try again.');
+            } finally {
+                btn.textContent = 'Confirm Redeem';
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize
+        loadDashboard();
+    </script>
+</body>
+
+</html>

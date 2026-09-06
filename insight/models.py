@@ -1,127 +1,150 @@
+
 import uuid
 from django.db import models
-from django.contrib.gis.db import models as gis_models
-from django.utils import timezone
 from django.contrib.auth.models import User
+from django.contrib.gis.db import models as gis_models
+# ... rest of your imports
 
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    tier = models.CharField(max_length=20, choices=[
-        ('BEGINNER', 'Beginner'), ('INTERMEDIATE', 'Intermediate'), ('ADVANCED', 'Advanced')
-    ], default='BEGINNER')
-    total_points = models.IntegerField(default=0)
-    is_verified = models.BooleanField(default=False)
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    codename = models.CharField(max_length=100, blank=True, null=True)
-
-    def __str__(self):
-        return self.user.username
-
-class State(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    code = models.CharField(max_length=10, unique=True)
-    boundary = gis_models.MultiPolygonField(srid=4326, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
+# ==========================================
+# CORE INTELLIGENCE MODELS
+# ==========================================
 
 class LGA(models.Model):
     name = models.CharField(max_length=100)
-    state = models.ForeignKey(State, related_name='lgas', on_delete=models.CASCADE)
+    state = models.CharField(max_length=100, default='Taraba')
+    population = models.IntegerField(default=0)
     boundary = gis_models.MultiPolygonField(srid=4326, null=True, blank=True)
 
     def __str__(self):
         return self.name
 
-class Ward(models.Model):
-    name = models.CharField(max_length=100)
-    lga = models.ForeignKey(LGA, related_name='wards', on_delete=models.CASCADE)
-    boundary = gis_models.MultiPolygonField(srid=4326, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-class PollingUnit(models.Model):
-    name = models.CharField(max_length=100)
-    ward = models.ForeignKey(Ward, related_name='polling_units', on_delete=models.CASCADE)
-    location = gis_models.PointField(srid=4326, null=True, blank=True)
-    boundary = gis_models.MultiPolygonField(srid=4326, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
 
 class Report(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    location = gis_models.PointField(srid=4326, null=True, blank=True)
-    lga = models.ForeignKey(LGA, related_name='reports', on_delete=models.SET_NULL, null=True)
-    description = models.TextField()
-    issue_category = models.CharField(max_length=50, choices=[
-        ('WATER', 'Water'), ('HEALTH', 'Health'), ('AGRIC', 'Agriculture'),
-        ('SECURITY', 'Security'), ('INFRA', 'Infrastructure'), ('EDUCATION', 'Education'), ('OTHER', 'Other')
-    ])
-    status = models.CharField(max_length=20, choices=[
-        ('RAW', 'Raw Observation'), ('PENDING_VERIFICATION', 'Pending Verification'),
-        ('VERIFIED', 'Verified Intelligence'), ('DISCARDED', 'Discarded')
-    ], default='RAW')
-    submitted_at = models.DateTimeField(default=timezone.now)
-    evidence_set = models.JSONField(default=list, blank=True)
-    image_base64 = models.TextField(blank=True, null=True, help_text="Base64 encoded image from mobile app")
-    
+    STATUS_CHOICES = [
+        ('RAW', 'Raw'),
+        ('PENDING_VERIFICATION', 'Pending Verification'),
+        ('VERIFIED', 'Verified'),
+        ('REJECTED', 'Rejected'),
+    ]
 
-    # --- AI Analytics Fields ---
-    ai_suggested_category = models.CharField(max_length=50, blank=True,)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    submitted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='submitted_reports',
+        help_text="The user who submitted this report"
+    )
+    description = models.TextField()
+    issue_category = models.CharField(max_length=100)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='RAW')
+    location = gis_models.PointField(srid=4326, null=True, blank=True)
+    lga = models.ForeignKey(LGA, on_delete=models.SET_NULL, null=True, blank=True)
+    image_base64 = models.TextField(null=True, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    # AI Analysis Fields
+    ai_suggested_category = models.CharField(max_length=100, blank=True, null=True)
     ai_confidence_score = models.FloatField(default=0.0)
-    
-    
-    # THESE ARE THE MISSING FIELDS:
-    ai_sentiment = models.CharField(max_length=20, blank=True, null=True)
-    ai_urgency_level = models.CharField(max_length=20, blank=True, null=True)
-    ai_extracted_entities = models.JSONField(default=dict, blank=True, null=True)
+    ai_sentiment = models.CharField(max_length=50, blank=True, null=True)
+    ai_urgency_level = models.CharField(max_length=50, blank=True, null=True)
+    ai_extracted_entities = models.JSONField(default=dict, blank=True)
+
+    # TarabaInsight 2.0 Fields
+    is_covert = models.BooleanField(default=False, help_text="Submitted via discreet/panic mode")
+    intel_quality_score = models.IntegerField(default=0, help_text="AI graded quality: 0 to 100")
+    points_awarded = models.IntegerField(default=0, help_text="Points granted for this specific report")
+    acknowledgment_sent = models.BooleanField(default=False, help_text="Has the user been notified of receipt?")
+
+    class Meta:
+        ordering = ['-submitted_at']
 
     def __str__(self):
         return f"Report {self.id} - {self.issue_category}"
 
+
 class FieldAgent(models.Model):
-    user = models.OneToOneField('auth.User', on_delete=models.CASCADE, null=True, blank=True)
     agent_id = models.CharField(max_length=50, unique=True)
-    phone_number = models.CharField(max_length=20)
-    assigned_lgas = models.ManyToManyField(LGA, blank=True)
+    name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
+    assigned_lga = models.ForeignKey(LGA, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return self.agent_id
+        return f"{self.name} ({self.agent_id})"
+
 
 class FieldVerification(models.Model):
-    report = models.OneToOneField(Report, related_name='verification', on_delete=models.CASCADE)
-    assigned_agent = models.ForeignKey(FieldAgent, related_name='verifications', on_delete=models.SET_NULL, null=True, blank=True)
-    verification_notes = models.TextField(blank=True, null=True)
-    verification_photos = models.JSONField(default=list, blank=True)
-    is_verified = models.BooleanField(default=False)
-    verified_at = models.DateTimeField(null=True, blank=True)
-    assigned_at = models.DateTimeField(default=timezone.now)
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('ASSIGNED', 'Assigned'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+
+    report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='verification')
+    assigned_agent = models.ForeignKey(FieldAgent, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    assigned_at = models.DateTimeField(auto_now_add=True)
     claimed_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[
-        ('PENDING', 'Pending Assignment'), ('ASSIGNED', 'Assigned'),
-        ('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed')
-    ], default='PENDING')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_valid = models.BooleanField(null=True, blank=True)
 
-    def complete_verification(self, is_valid, notes):
-        self.is_verified = is_valid
-        self.verification_notes = notes
-        self.completed_at = timezone.now()
-        self.status = 'COMPLETED'
-        self.verified_at = timezone.now()
-        self.save()
-
-        self.report.status = 'VERIFIED' if is_valid else 'DISCARDED'
-        self.report.save()
-        return self.report
+    class Meta:
+        ordering = ['-assigned_at']
 
     def __str__(self):
-        return f"Verification for {self.report.id}"
-    
-# --- INTELLIGENCE ANALYSIS MODELS ---
+        return f"Verification for Report {self.report.id}"
+
+    def complete_verification(self, is_valid, notes=''):
+        self.is_valid = is_valid
+        self.notes = notes
+        self.verified_at = timezone.now()
+        self.status = 'COMPLETED' if is_valid else 'FAILED'
+        self.save()
+        self.report.status = 'VERIFIED' if is_valid else 'REJECTED'
+        self.report.save()
+
+
+class IntelligenceSummary(models.Model):
+    title = models.CharField(max_length=200)
+    executive_briefing = models.TextField()
+    key_findings = models.JSONField(default=list)
+    emerging_threats = models.JSONField(default=list)
+    recommendations = models.JSONField(default=list)
+    statistics = models.JSONField(default=dict)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    report_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-generated_at']
+
+    def __str__(self):
+        return self.title
+
+
+class PatternAlert(models.Model):
+    SEVERITY_CHOICES = [
+        ('LOW', 'Low'),
+        ('MEDIUM', 'Medium'),
+        ('HIGH', 'High'),
+        ('CRITICAL', 'Critical'),
+    ]
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    alert_type = models.CharField(max_length=100)
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MEDIUM')
+    detected_at = models.DateTimeField(auto_now_add=True)
+    acknowledged = models.BooleanField(default=False)
+    related_reports = models.ManyToManyField(Report, blank=True)
+
+    class Meta:
+        ordering = ['-detected_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.severity})"
+
+
 # ==========================================
 # TARABAINSIGHT 2.0: HUMINT & REWARD SYSTEM
 # ==========================================
@@ -140,22 +163,40 @@ TRANSACTION_TYPES = [
     ('REDEEMED_AIRTIME', 'Points Redeemed: Airtime/Data'),
     ('REDEEMED_MATERIAL', 'Points Redeemed: Physical Materials'),
     ('REDEEMED_SCHOLARSHIP', 'Points Redeemed: Scholarship/Education'),
+    ('REDEEMED_CASH', 'Points Redeemed: Cash Reward'),
+    ('REDEEMED_BADGE', 'Points Redeemed: Digital Badge'),
     ('ADMIN_ADJUSTMENT', 'Admin Manual Adjustment'),
 ]
+
+REWARD_CATEGORIES = [
+    ('AIRTIME', 'Airtime / Data Bundle'),
+    ('MATERIAL', 'Physical Materials'),
+    ('SCHOLARSHIP', 'Scholarship / Education'),
+    ('CASH', 'Cash Reward'),
+    ('BADGE', 'Digital Badge / Award'),
+]
+
+REDEMPTION_STATUS = [
+    ('PENDING', 'Pending Approval'),
+    ('APPROVED', 'Approved'),
+    ('REJECTED', 'Rejected'),
+    ('FULFILLED', 'Fulfilled'),
+]
+
 
 class UserProfile(models.Model):
     """Extends the default User model to handle Tiers, Points, and Covert Identities"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='intel_profile')
     tier = models.CharField(max_length=20, choices=USER_TIERS, default='CITIZEN')
-    
+
     # Gamification & Rewards
-    total_points = models.IntegerField(default=0)
-    lifetime_points = models.IntegerField(default=0)
-    
+    total_points = models.IntegerField(default=0, help_text="Current available reward points")
+    lifetime_points = models.IntegerField(default=0, help_text="Total points earned historically")
+
     # Contact & Verification
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    is_verified = models.BooleanField(default=False)
-    
+    phone_number = models.CharField(max_length=20, blank=True, null=True, help_text="For SMS acknowledgments and rewards")
+    is_verified = models.BooleanField(default=False, help_text="Has an admin vetted this user?")
+
     # Covert Settings
     use_codename = models.BooleanField(default=False)
     codename = models.CharField(max_length=50, blank=True, null=True)
@@ -170,11 +211,10 @@ class UserProfile(models.Model):
 
 class RewardLedger(models.Model):
     """Immutable ledger tracking every point earned or spent by a user"""
-    # Note: We use the string 'Report' here to prevent any top-to-bottom circular reference issues
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='ledger_entries')
     transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPES)
-    points = models.IntegerField()
-    description = models.TextField(blank=True)
+    points = models.IntegerField(help_text="Positive for earned, negative for redeemed")
+    description = models.TextField(blank=True, help_text="Reason for transaction")
     related_report = models.ForeignKey('Report', on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -184,67 +224,81 @@ class RewardLedger(models.Model):
 
     def __str__(self):
         return f"{self.user_profile} | {self.points} pts | {self.get_transaction_type_display()}"
-# --- INTELLIGENCE ANALYSIS MODELS ---
 
-class IntelligenceSummary(models.Model):
-    """Automated AI-generated intelligence summaries (SITREPs)"""
-    PERIOD_CHOICES = [
-        ('DAILY', 'Daily SITREP'),
-        ('WEEKLY', 'Weekly Intelligence Summary'),
-        ('FLASH', 'Flash Alert'),
-    ]
-    
-    title = models.CharField(max_length=200, default='')
-    period_type = models.CharField(max_length=20, choices=PERIOD_CHOICES, default='DAILY')
-    period_start = models.DateTimeField(default=timezone.now)
-    period_end = models.DateTimeField(default=timezone.now)
-    generated_at = models.DateTimeField(auto_now_add=True)
-    
-    # AI-generated content
-    executive_briefing = models.TextField(default='', blank=True)
-    key_findings = models.JSONField(default=list, blank=True)
-    emerging_threats = models.JSONField(default=list, blank=True)
-    recommendations = models.JSONField(default=list, blank=True)
-    
-    # Statistics
-    statistics = models.JSONField(default=dict, blank=True)
-    
-    # Links to source reports
-    source_reports = models.ManyToManyField(Report, related_name='intelligence_summaries', blank=True)
-    
+
+class RewardCatalog(models.Model):
+    """Available rewards that users can redeem with points"""
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    category = models.CharField(max_length=20, choices=REWARD_CATEGORIES)
+    points_required = models.IntegerField(help_text="Points needed to redeem")
+    min_tier_required = models.CharField(
+        max_length=20,
+        choices=USER_TIERS,
+        default='CITIZEN',
+        help_text="Minimum user tier to redeem"
+    )
+    quantity_available = models.IntegerField(
+        default=-1,
+        help_text="-1 means unlimited"
+    )
+    is_active = models.BooleanField(default=True)
+    admin_notes = models.TextField(blank=True, help_text="Internal admin notes")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
-        ordering = ['-generated_at']
-        verbose_name_plural = "Intelligence Summaries"
-    
+        ordering = ['points_required']
+        verbose_name_plural = "Reward Catalog"
+
     def __str__(self):
-        return f"{self.period_type} - {self.title}"
+        return f"{self.title} ({self.points_required} pts)"
+
+    @property
+    def is_available(self):
+        if not self.is_active:
+            return False
+        if self.quantity_available == -1:
+            return True
+        return self.quantity_available > 0
 
 
-class PatternAlert(models.Model):
-    """Automated alerts for detected spatial/temporal patterns"""
-    ALERT_TYPES = [
-        ('SURGE', 'Report Volume Surge'),
-        ('CLUSTER', 'Geographic Clustering'),
-        ('ESCALATION', 'Urgency Escalation'),
-    ]
-    
-    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, default='SURGE')
-    severity = models.CharField(max_length=20, choices=[
-        ('INFO', 'Informational'), ('WARNING', 'Warning'), ('CRITICAL', 'Critical'),
-    ], default='INFO')
-    title = models.CharField(max_length=200, default='')
-    description = models.TextField(default='', blank=True)
-    detected_at = models.DateTimeField(auto_now_add=True)
-    
-    # Pattern data
-    pattern_data = models.JSONField(default=dict, blank=True)
-    related_reports = models.ManyToManyField(Report, related_name='pattern_alerts', blank=True)
-    
-    # Response
-    acknowledged = models.BooleanField(default=False)
-    
+class Redemption(models.Model):
+    """Tracks reward redemptions by users"""
+    user_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name='redemptions'
+    )
+    reward = models.ForeignKey(
+        RewardCatalog,
+        on_delete=models.PROTECT,
+        related_name='redemptions'
+    )
+    points_deducted = models.IntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=REDEMPTION_STATUS,
+        default='PENDING'
+    )
+    delivery_details = models.TextField(
+        blank=True,
+        help_text="Phone number, address, bank details, etc."
+    )
+    admin_review_notes = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_redemptions'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    fulfilled_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
-        ordering = ['-detected_at']
-    
+        ordering = ['-created_at']
+
     def __str__(self):
-        return f"[{self.severity}] {self.title}"
+        return f"{self.user_profile} redeemed {self.reward} ({self.status})"

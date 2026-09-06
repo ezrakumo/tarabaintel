@@ -6,6 +6,8 @@ import os
 import dj_database_url
 from datetime import timedelta
 
+from django.db.backends import postgresql
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0'
@@ -62,7 +64,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
 
 # Database Configuration
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3')
+db_url = os.environ.get('DATABASE_URL', 'postgresql://tarabaintel_user:7n2CKWXlQJrCYzlzoaVejxvoRW0sUPih@dpg-dae5d5dbedkc73bd8d20-a.oregon-postgres.render.com/tarabaintel')
 is_sqlite = 'sqlite' in db_url
 
 DATABASES = {

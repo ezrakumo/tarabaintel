@@ -1,4 +1,4 @@
-   # FORCE REBUILD
+﻿   # FORCE REBUILD
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.14.2
@@ -46,3 +46,4 @@ tzdata==2026.3
 urllib3==2.7.0
 gunicorn==26.2.0
 
+gunicorn

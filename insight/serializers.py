@@ -3,6 +3,8 @@ from .models import (
     Report, FieldAgent, FieldVerification, LGA,
     UserProfile, RewardLedger, RewardCatalog, Redemption
 )
+from rest_framework import serializers
+from .models import UserProfile, RewardLedger, Redemption, RewardCatalog
 
 
 # ==========================================
@@ -147,3 +149,35 @@ class MyReportSerializer(serializers.ModelSerializer):
             'intel_quality_score', 'points_awarded', 'status',
             'ai_urgency_level', 'ai_confidence_score'
         ]
+
+
+class DashboardLedgerSerializer(serializers.ModelSerializer):
+    transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
+    
+    class Meta:
+        model = RewardLedger
+        fields = ['id', 'transaction_type_display', 'points', 'description', 'created_at']
+
+class DashboardRedemptionSerializer(serializers.ModelSerializer):
+    reward_title = serializers.CharField(source='reward.title', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Redemption
+        fields = ['id', 'reward_title', 'points_deducted', 'status_display', 'created_at']
+
+class DashboardRewardSerializer(serializers.ModelSerializer):
+    is_available = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = RewardCatalog
+        fields = ['id', 'title', 'description', 'category', 'points_required', 'is_available']
+
+class RewardsDashboardSerializer(serializers.Serializer):
+    """Strict contract for the dashboard payload"""
+    profile = serializers.DictField()
+    recent_transactions = DashboardLedgerSerializer(many=True)
+    active_redemptions = DashboardRedemptionSerializer(many=True)
+    affordable_rewards = DashboardRewardSerializer(many=True)
+    next_tier = serializers.CharField(allow_null=True)
+    points_to_next_tier = serializers.IntegerField(allow_null=True)

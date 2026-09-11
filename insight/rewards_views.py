@@ -4,13 +4,21 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from .models import UserProfile, RewardLedger, RewardCatalog, Redemption, Report
+from .permissions import IsCitizenOrAbove
 from .serializers import (
     UserProfileSerializer, RewardLedgerSerializer,
     RewardCatalogSerializer, RedemptionSerializer,
-    RedeemRewardSerializer, MyReportSerializer
+    RedeemRewardSerializer, MyReportSerializer,
+    # ️ ADD THESE NEW SERIALIZERS HERE:
+    RewardsDashboardSerializer, DashboardLedgerSerializer, 
+    DashboardRedemptionSerializer, DashboardRewardSerializer
 )
+
+  
+
 
 
 class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
@@ -230,3 +238,62 @@ class RewardsDashboardView(APIView):
             return None
         next_tier = tier_order[current_idx + 1]
         return max(0, thresholds[next_tier] - profile.lifetime_points)
+    
+
+
+class RewardsDashboardView(APIView):
+    """
+    GET /api/rewards/dashboard/
+    Secure endpoint requiring JWT. Accessible to all verified tiers.
+    """
+    # Apply JWT Auth and RBAC
+    permission_classes = [IsAuthenticated, IsCitizenOrAbove]
+
+    def get(self, request):
+        # 1. Get or create profile
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        
+        # 2. Fetch Data
+        recent_ledger = RewardLedger.objects.filter(user_profile=profile)[:10]
+        active_redemptions = Redemption.objects.filter(
+            user_profile=profile
+        ).exclude(status__in=['REJECTED', 'FULFILLED'])[:5]
+        
+        # 3. Filter rewards by tier and affordability
+        tier_order = ['CITIZEN', 'VOLUNTEER', 'INFORMANT', 'AGENT']
+        user_tier_idx = tier_order.index(profile.tier)
+        available_tiers = tier_order[:user_tier_idx + 1]
+        
+        affordable_rewards = RewardCatalog.objects.filter(
+            is_active=True,
+            min_tier_required__in=available_tiers,
+            points_required__lte=profile.total_points
+        )[:6]
+
+        # 4. Calculate Next Tier
+        next_tier, points_to_next = self._calculate_next_tier(profile, tier_order)
+
+        # 5. Build Payload
+        dashboard_data = {
+            'profile': UserProfileSerializer(profile).data,
+            'recent_transactions': DashboardLedgerSerializer(recent_ledger, many=True).data,
+            'active_redemptions': DashboardRedemptionSerializer(active_redemptions, many=True).data,
+            'affordable_rewards': DashboardRewardSerializer(affordable_rewards, many=True).data,
+            'next_tier': next_tier,
+            'points_to_next_tier': points_to_next
+        }
+
+        # 6. Return using the strict serializer
+        serializer = RewardsDashboardSerializer(dashboard_data)
+        return Response(serializer.data)
+
+    def _calculate_next_tier(self, profile, tier_order):
+        thresholds = {'CITIZEN': 0, 'VOLUNTEER': 500, 'INFORMANT': 2000, 'AGENT': 5000}
+        current_idx = tier_order.index(profile.tier)
+        
+        if current_idx >= 3: # Already max tier
+            return None, None
+            
+        next_tier = tier_order[current_idx + 1]
+        points_needed = max(0, thresholds[next_tier] - profile.lifetime_points)
+        return next_tier, points_needed

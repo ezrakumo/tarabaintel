@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',                  # <-- ADDED FOR USER MANAGEMENT
     'insight',
+    
 ]
 
 MIDDLEWARE = [
@@ -119,6 +120,7 @@ CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-typ
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',

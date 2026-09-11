@@ -9,19 +9,19 @@ from insight.views import intelligence_briefing_dashboard
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('insight.urls')), 
     
-    # Authentication URLs (THESE MUST BE HERE)
+    # 1. SPECIFIC ROUTES MUST COME FIRST!
     path('api/auth/register/', RegisterView.as_view(), name='register'),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/profile/', ProfileView.as_view(), name='profile'),
-    # JWT Authentication Endpoints
+    
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
+    # 2. GENERIC INCLUDE COMES LAST (so it doesn't swallow the routes above)
+    path('api/', include('insight.urls')), 
+    
     # Dashboard URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
-
- 
 ]

@@ -146,3 +146,5 @@ MAILERS = {
 }
 DEFAULT_MAILER = "default"
 DEFAULT_FROM_EMAIL = "TarabaInsight Alerts <your_email@gmail.com>"
+# Allow requests from any origin (for testing Flutter Web)
+CORS_ALLOW_ALL_ORIGINS = True

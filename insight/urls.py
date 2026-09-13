@@ -13,6 +13,8 @@ from .rewards_views import (
     RewardCatalogView, RedemptionViewSet,
     MyReportsView, RewardsDashboardView
 )
+from django.urls import path
+from .views import RedeemRewardView # Add this import
 
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
@@ -29,4 +31,6 @@ urlpatterns = [
     path('rewards/my-reports/', MyReportsView.as_view(), name='my-reports'),
     path('rewards/dashboard/', RewardsDashboardView.as_view(), name='rewards-dashboard'),
     path('rewards/', rewards_dashboard_page, name='rewards_dashboard_page'),
+    path('rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
+
 ]

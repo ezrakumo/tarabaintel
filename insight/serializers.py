@@ -1,10 +1,9 @@
 from rest_framework import serializers
 from .models import (
-    Report, FieldAgent, FieldVerification, LGA,
-    UserProfile, RewardLedger, RewardCatalog, Redemption
+    Report, FieldAgent, FieldVerification, LGA, RewardLedger, Redemption
 )
-from rest_framework import serializers
-from .models import UserProfile, RewardLedger, Redemption, RewardCatalog
+from .models import UserProfile
+from .models import RewardCatalog # Ensure this is at the top of your file
 
 
 # ==========================================
@@ -181,3 +180,14 @@ class RewardsDashboardSerializer(serializers.Serializer):
     affordable_rewards = DashboardRewardSerializer(many=True)
     next_tier = serializers.CharField(allow_null=True)
     points_to_next_tier = serializers.IntegerField(allow_null=True)
+
+
+# Add this at the bottom of the file:
+class RedeemRewardSerializer(serializers.Serializer):
+    reward_id = serializers.IntegerField()
+
+    def validate_reward_id(self, value):
+        try:
+            return RewardCatalog.objects.get(id=value, is_available=True)
+        except RewardCatalog.DoesNotExist:
+            raise serializers.ValidationError("Reward not found or unavailable.")

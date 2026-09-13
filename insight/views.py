@@ -7,7 +7,7 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
@@ -20,7 +20,13 @@ from .serializers import (
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
 from insight.services.quality_grader import grade_and_reward_report
-
+from rest_framework.views import APIView
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from .serializers import RedeemRewardSerializer
+from .models import RewardCatalog, RewardLedger
+from users.models import Profile # Adjust if your Profile model is in a different app like 'accounts'
 
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
@@ -259,3 +265,40 @@ def test_ai_engine(request):
 def rewards_dashboard_page(request):
     """Renders the frontend Rewards Dashboard page"""
     return render(request, 'rewards_dashboard.html')
+class RedeemRewardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic # Prevents double-spending (Race Conditions)
+    def post(self, request):
+        serializer = RedeemRewardSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        reward = serializer.validated_data['reward_id']
+        
+        # Lock the profile row to prevent race conditions
+        # Note: If your Profile model is in 'accounts', change this to: accounts.models.Profile
+        profile = Profile.objects.select_for_update().get(user=request.user)
+
+        if profile.total_points < reward.points_required:
+            return Response(
+                {"error": "Insufficient points."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Deduct points
+        profile.total_points -= reward.points_required
+        profile.save()
+
+        # Create a ledger entry using your exact model names
+        RewardLedger.objects.create(
+            user=request.user,
+            reward=reward, # Make sure your RewardLedger model has a 'reward' ForeignKey
+            points=-reward.points_required, # Negative points for redemption
+            description=f"Redeemed: {reward.title}",
+            transaction_type='REDEMPTION' # Adjust if your model uses a different field name
+        )
+
+        return Response({
+            "message": f"Successfully redeemed {reward.title}!",
+            "new_balance": profile.total_points
+        }, status=status.HTTP_201_CREATED)

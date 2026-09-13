@@ -1,4 +1,4 @@
-import 'dart:async'; // <-- ADDED: Fixes StreamController error
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'services/offline_queue.dart';
+import 'services/offline_queue.dart'; // Ensure this file exists in your lib/services folder
+import 'screens/rewards_dashboard_screen.dart';
 
 void main() {
   runApp(const TarabaInsightApp());
@@ -69,7 +70,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      // FIXED: Removed 'const' from Scaffold/Container to prevent const clash
       return Scaffold(
         body: Container(
           decoration: const BoxDecoration(
@@ -92,7 +92,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         ),
       );
     }
-    return _isLoggedIn ? const CitizenReportScreen() : const LoginScreen();
+    return _isLoggedIn ? const RewardsDashboardScreen() : const LoginScreen();
   }
 }
 
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://tarabaintel.onrender.com/api/auth/login/'),
+        Uri.parse('https://tarabaintel-ai.onrender.com/api/token/'), // ✅ CORRECT LIVE URL
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': _usernameController.text,
@@ -126,18 +126,24 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwt_token', data['access']);
+        await prefs.setString('jwt_token', data['access']); // Saves the token
         
         setState(() { _isLoading = false; });
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CitizenReportScreen()));
+        
+        // ✅ Navigate to the new Rewards Dashboard
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RewardsDashboardScreen()));
       } else {
+        // ✅ FIXED: Moved inside the try block, properly matched braces
         setState(() {
           _isLoading = false;
           _errorMessage = 'Invalid credentials';
         });
       }
     } catch (e) {
-      setState(() { _isLoading = false; _errorMessage = 'Network error. Check connection.'; });
+      setState(() { 
+        _isLoading = false; 
+        _errorMessage = 'Network error. Check connection.'; 
+      });
     }
   }
 
@@ -283,7 +289,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://tarabaintel.onrender.com/api/auth/register/'),
+        Uri.parse('https://tarabaintel-ai.onrender.com/api/auth/register/'), // ✅ FIXED: Points to register endpoint, not token
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': _usernameController.text,
@@ -303,7 +309,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final errorData = jsonDecode(response.body);
         setState(() {
           _isLoading = false;
-          _errorMessage = errorData.values.first.first.toString();
+          _errorMessage = errorData is Map && errorData.values.isNotEmpty 
+              ? errorData.values.first.toString() 
+              : 'Registration failed';
         });
       }
     } catch (e) {
@@ -446,7 +454,7 @@ class _CitizenReportScreenState extends State<CitizenReportScreen> {
   String? _imageBase64;
   String? _token;
 
-  final String apiUrl = 'https://tarabaintel.onrender.com/api/reports/';
+  final String apiUrl = 'https://tarabaintel-ai.onrender.com/api/reports/';
 
   @override
   void initState() {
@@ -663,7 +671,7 @@ class _CitizenReportScreenState extends State<CitizenReportScreen> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                                                            if (_imageBytes == null)
+                              if (_imageBytes == null)
                                 GestureDetector(
                                   onTap: _pickImage,
                                   child: Container(

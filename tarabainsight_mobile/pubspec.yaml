@@ -33,6 +33,7 @@ dependencies:
   http: ^1.2.0
   image_picker: ^1.0.7
   shared_preferences: ^2.2.2 
+  intl: ^0.19.0         # For formatting dates and currency
   
  # ... your existing dependencies ...
   connectivity_plus: ^5.0.2

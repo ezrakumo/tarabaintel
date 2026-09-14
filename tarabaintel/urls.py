@@ -6,7 +6,6 @@ from rest_framework_simplejwt.views import (
 )
 from accounts.views import RegisterView, ProfileView
 from insight.views import intelligence_briefing_dashboard
-from .views import RedeemRewardView
 
 urlpatterns = [
     path('admin/', admin.site.urls),

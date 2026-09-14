@@ -25,9 +25,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from .serializers import RedeemRewardSerializer
-from .models import RewardCatalog, RewardLedger
-from accounts.models import Profile # Adjust if your Profile model is in a different app like 'accounts'
-
+from .models import RewardCatalog, RewardLedger, UserProfile
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
@@ -277,7 +275,7 @@ class RedeemRewardView(APIView):
         
         # Lock the profile row to prevent race conditions
         # Note: If your Profile model is in 'accounts', change this to: accounts.models.Profile
-        profile = Profile.objects.select_for_update().get(user=request.user)
+        profile = UserProfile.objects.select_for_update().get(user=request.user)
 
         if profile.total_points < reward.points_required:
             return Response(

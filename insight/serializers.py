@@ -64,7 +64,6 @@ class VerificationCompleteSerializer(serializers.Serializer):
     is_valid = serializers.BooleanField()
     notes = serializers.CharField(required=False, allow_blank=True)
 
-
 # ==========================================
 # TARABAINSIGHT 2.0: REWARD SERIALIZERS
 # ==========================================
@@ -114,28 +113,17 @@ class RewardCatalogSerializer(serializers.ModelSerializer):
         ]
 
 
-class RedemptionSerializer(serializers.ModelSerializer):
-    reward_title = serializers.CharField(source='reward.title', read_only=True)
-    reward_category = serializers.CharField(source='reward.category', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-
-    class Meta:
-        model = Redemption
-        fields = [
-            'id', 'reward', 'reward_title', 'reward_category',
-            'points_deducted', 'status', 'status_display',
-            'delivery_details', 'admin_review_notes',
-            'created_at', 'reviewed_at', 'fulfilled_at'
-        ]
-        read_only_fields = [
-            'points_deducted', 'status', 'admin_review_notes',
-            'reviewed_at', 'fulfilled_at'
-        ]
-
-
+# ✅ MERGED & FIXED: Single, perfect RedeemRewardSerializer
 class RedeemRewardSerializer(serializers.Serializer):
     reward_id = serializers.IntegerField()
     delivery_details = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_reward_id(self, value):
+        try:
+            # ✅ FIXED: Use 'is_active' (the actual DB field) instead of 'is_available'
+            return RewardCatalog.objects.get(id=value, is_active=True)
+        except RewardCatalog.DoesNotExist:
+            raise serializers.ValidationError("Reward not found or unavailable.")
 
 
 class MyReportSerializer(serializers.ModelSerializer):
@@ -157,13 +145,6 @@ class DashboardLedgerSerializer(serializers.ModelSerializer):
         model = RewardLedger
         fields = ['id', 'transaction_type_display', 'points', 'description', 'created_at']
 
-class DashboardRedemptionSerializer(serializers.ModelSerializer):
-    reward_title = serializers.CharField(source='reward.title', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-
-    class Meta:
-        model = Redemption
-        fields = ['id', 'reward_title', 'points_deducted', 'status_display', 'created_at']
 
 class DashboardRewardSerializer(serializers.ModelSerializer):
     is_available = serializers.BooleanField(read_only=True)
@@ -172,22 +153,13 @@ class DashboardRewardSerializer(serializers.ModelSerializer):
         model = RewardCatalog
         fields = ['id', 'title', 'description', 'category', 'points_required', 'is_available']
 
+
 class RewardsDashboardSerializer(serializers.Serializer):
     """Strict contract for the dashboard payload"""
     profile = serializers.DictField()
     recent_transactions = DashboardLedgerSerializer(many=True)
-    active_redemptions = DashboardRedemptionSerializer(many=True)
+    # Note: If you don't have a Redemption model, comment out the next line and the import at the top!
+    # active_redemptions = DashboardRedemptionSerializer(many=True) 
     affordable_rewards = DashboardRewardSerializer(many=True)
     next_tier = serializers.CharField(allow_null=True)
     points_to_next_tier = serializers.IntegerField(allow_null=True)
-
-
-# Add this at the bottom of the file:
-class RedeemRewardSerializer(serializers.Serializer):
-    reward_id = serializers.IntegerField()
-
-    def validate_reward_id(self, value):
-        try:
-            return RewardCatalog.objects.get(id=value, is_available=True)
-        except RewardCatalog.DoesNotExist:
-            raise serializers.ValidationError("Reward not found or unavailable.")

@@ -25,7 +25,7 @@ class RewardService {
           Uri.parse("$baseUrl/token/"),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'username': username, 'password': password}),
-        ).timeout(const Duration(seconds: 20)); // 20 second timeout
+        ).timeout(const Duration(seconds: 20));
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -36,7 +36,7 @@ class RewardService {
       } catch (e) {
         print("Login attempt ${attempt + 1} failed: $e");
         if (attempt < 2) {
-          await Future.delayed(const Duration(seconds: 3)); // Wait before retry
+          await Future.delayed(const Duration(seconds: 3));
         }
       }
     }
@@ -54,7 +54,7 @@ class RewardService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 45)); // ✅ 45 seconds for Render cold starts
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -69,7 +69,6 @@ class RewardService {
     }
   }
 
-  // ✅ CORRECTLY PLACED INSIDE THE CLASS
   static Future<Map<String, dynamic>?> redeemReward(int rewardId) async {
     final token = await getToken();
     if (token == null) return null;
@@ -82,7 +81,7 @@ class RewardService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'reward_id': rewardId}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 201) {
         return jsonDecode(response.body);

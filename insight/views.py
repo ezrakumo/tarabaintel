@@ -289,11 +289,10 @@ class RedeemRewardView(APIView):
 
         # Create a ledger entry using your exact model names
         RewardLedger.objects.create(
-            user=request.user,
-            reward=reward, # Make sure your RewardLedger model has a 'reward' ForeignKey
-            points=-reward.points_required, # Negative points for redemption
-            description=f"Redeemed: {reward.title}",
-            transaction_type='REDEMPTION' # Adjust if your model uses a different field name
+            user_profile=profile,
+            transaction_type='REDEMPTION',
+            points=-reward.points_required,
+            description=f"Redeemed reward: {reward.title}"
         )
 
         return Response({

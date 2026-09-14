@@ -18,30 +18,30 @@ class RewardService {
   }
 
   static Future<bool> login(String username, String password) async {
-  // Try up to 3 times (for Render spin-up delays)
-  for (int attempt = 0; attempt < 3; attempt++) {
-    try {
-      final response = await http.post(
-        Uri.parse("$baseUrl/token/"),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password}),
-      ).timeout(const Duration(seconds: 20)); // 20 second timeout
+    // Try up to 3 times (for Render spin-up delays)
+    for (int attempt = 0; attempt < 3; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse("$baseUrl/token/"),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'username': username, 'password': password}),
+        ).timeout(const Duration(seconds: 20)); // 20 second timeout
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        await saveToken(data['access']);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print("Login attempt ${attempt + 1} failed: $e");
-      if (attempt < 2) {
-        await Future.delayed(const Duration(seconds: 3)); // Wait before retry
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          await saveToken(data['access']);
+          return true;
+        }
+        return false;
+      } catch (e) {
+        print("Login attempt ${attempt + 1} failed: $e");
+        if (attempt < 2) {
+          await Future.delayed(const Duration(seconds: 3)); // Wait before retry
+        }
       }
     }
+    return false;
   }
-  return false;
-}
 
   static Future<DashboardResponse?> getDashboard() async {
     final token = await getToken();
@@ -54,7 +54,7 @@ class RewardService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -68,4 +68,31 @@ class RewardService {
       return null;
     }
   }
-}
+
+  // ✅ CORRECTLY PLACED INSIDE THE CLASS
+  static Future<Map<String, dynamic>?> redeemReward(int rewardId) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/rewards/redeem/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reward_id': rewardId}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'Redemption failed');
+      }
+    } catch (e) {
+      print("Redemption Error: $e");
+      throw Exception(e.toString());
+    }
+  }
+} // ✅ THIS IS THE ONLY CLOSING BRACE FOR THE CLASS

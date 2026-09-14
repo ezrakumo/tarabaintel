@@ -28,4 +28,5 @@ urlpatterns = [
     
     # Redemption Endpoint (Lives in views.py)
     path('rewards/redeem/', views.RedeemRewardView.as_view(), name='redeem-reward'),
+    path('debug/rewards/', views.debug_rewards, name='debug_rewards'),
 ]

@@ -8,7 +8,7 @@ from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework import viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert
@@ -26,17 +26,16 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from .serializers import RedeemRewardSerializer
 from .models import RewardCatalog, RewardLedger, UserProfile
+
+
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
 
     def perform_create(self, serializer):
-        # 1. Save the report as RAW first
         report = serializer.save(status='RAW')
         
-        # 2. Send to AI Microservice (Now Cloud-Native!)
         try:
-            # Get the AI URL from environment variables, fallback to local for testing
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
             
@@ -46,7 +45,6 @@ class ReportViewSet(viewsets.ModelViewSet):
                 "issue_category": report.issue_category
             }
             
-            # Increased timeout to 15s to account for cloud server wake-up time
             response = requests.post(ai_url, json=ai_payload, timeout=15)
             
             if response.status_code == 200:
@@ -61,43 +59,23 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
-                # --- NEW: GRADE INTEL QUALITY AND AWARD POINTS (Runs for ALL reports) ---
                 try:
                     score, pts = grade_and_reward_report(report)
                     print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
                 except Exception as grading_error:
                     print(f"⚠️ Grading/Reward system failed: {grading_error}")
 
-                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
-                    FieldVerification.objects.create(
-                        report=report,
-                        status='PENDING'
-                    )
+                    FieldVerification.objects.create(report=report, status='PENDING')
                     print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
                     
-                    # --- SEND FLASH EMAIL ALERT ---
                     try:
                         lga_name = report.lga.name if report.lga else 'Unknown'
                         subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
-                        message = f"""
-URGENT INTELLIGENCE ALERT
-
-A CRITICAL threat has been reported and verified by AI.
-
-Description: {report.description}
-Location: {lga_name}
-AI Confidence: {report.ai_confidence_score}%
-Time: {report.submitted_at}
-
-Login to the Command Center immediately to review.
-"""
+                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
                         send_mail(
-                            subject, 
-                            message, 
-                            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
-                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], 
-                            fail_silently=True, 
+                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
                         )
                         print("✅ Flash email alert queued/sent successfully.")
                     except Exception as email_error:
@@ -110,18 +88,11 @@ Login to the Command Center immediately to review.
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
-        """Export all reports to a CSV file for offline analysis"""
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="tarabaintel_intelligence_export.csv"'
-
         writer = csv.writer(response)
-        # Write the header row
-        writer.writerow([
-            'Report ID', 'Submitted At', 'LGA', 'Category', 
-            'Urgency Level', 'AI Confidence', 'Description', 'Status'
-        ])
+        writer.writerow(['Report ID', 'Submitted At', 'LGA', 'Category', 'Urgency Level', 'AI Confidence', 'Description', 'Status'])
 
-        # Write the data rows
         reports = Report.objects.all().order_by('-submitted_at')
         for report in reports:
             writer.writerow([
@@ -134,7 +105,6 @@ Login to the Command Center immediately to review.
                 report.description,
                 report.status
             ])
-
         return response
 
 
@@ -151,7 +121,6 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             agent_id = serializer.validated_data['agent_id']
             try:
                 agent = FieldAgent.objects.get(agent_id=agent_id, is_active=True)
-                
                 if verification.status not in ['PENDING', 'ASSIGNED']:
                     return Response({'error': 'Already claimed or completed'}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -159,10 +128,8 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
                 verification.status = 'IN_PROGRESS'
                 verification.claimed_at = timezone.now()
                 verification.save()
-                
                 verification.report.status = 'PENDING_VERIFICATION'
                 verification.report.save()
-                
                 return Response({'message': f'Claimed by {agent.agent_id}'})
             except FieldAgent.DoesNotExist:
                 return Response({'error': 'Invalid agent'}, status=status.HTTP_404_NOT_FOUND)
@@ -183,59 +150,38 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             
             verification.complete_verification(is_valid, notes)
             return Response({'message': 'Verification completed'})
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 def intelligence_briefing_dashboard(request):
-    """Executive Intelligence Dashboard for Stakeholders"""
     latest_summary = IntelligenceSummary.objects.first()
     recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
-    
     summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
     
-    chart_labels = []
-    chart_volumes = []
-    chart_critical = []
-    
+    chart_labels, chart_volumes, chart_critical = [], [], []
     for summary in summaries_history:
         chart_labels.append(summary.generated_at.strftime('%b %d'))
         chart_volumes.append(summary.statistics.get('total_reports', 0))
         chart_critical.append(summary.statistics.get('critical_incidents', 0))
         
-    # 🛡️ BULLETPROOF FIX: Extract JSONField data into flat context variables
     stats = latest_summary.statistics if latest_summary else {}
-    
     context = {
-        'latest_summary': latest_summary,
-        'recent_alerts': recent_alerts,
-        'chart_labels': chart_labels,
-        'chart_volumes': chart_volumes,
-        'chart_critical': chart_critical,
-        # Flat variables guarantee perfect template rendering
-        'total_reports': stats.get('total_reports', 0),
-        'critical_incidents': stats.get('critical_incidents', 0),
-        'hotspots_identified': stats.get('hotspots_identified', 0),
-        'trend': stats.get('trend', 'STABLE'),
+        'latest_summary': latest_summary, 'recent_alerts': recent_alerts,
+        'chart_labels': chart_labels, 'chart_volumes': chart_volumes, 'chart_critical': chart_critical,
+        'total_reports': stats.get('total_reports', 0), 'critical_incidents': stats.get('critical_incidents', 0),
+        'hotspots_identified': stats.get('hotspots_identified', 0), 'trend': stats.get('trend', 'STABLE'),
     }
-    
     return render(request, 'intelligence_dashboard.html', context)
 
 
 @api_view(['GET'])
 def test_ai_engine(request):
-    """
-    Secured endpoint for automated AI Intelligence Generation.
-    Requires a secret token to execute.
-    """
-    # 1. SECURITY CHECK
     secret_token = request.GET.get('token', '')
     expected_token = os.environ.get('AI_CRON_SECRET', 'super_secret_default_token_123')
     
     if secret_token != expected_token:
         return Response({"status": "UNAUTHORIZED", "message": "Invalid secret token"}, status=403)
 
-    # 2. EXECUTE AI ENGINE
     try:
         service = IntelligenceGenerationService()
         summary = service.generate_daily_sitrep()
@@ -243,51 +189,36 @@ def test_ai_engine(request):
         
         if summary:
             return Response({
-                "status": "SUCCESS",
-                "message": "AI Engine executed successfully!",
-                "summary": {
-                    "title": summary.title,
-                    "briefing": summary.executive_briefing,
-                    "findings": summary.key_findings,
-                    "stats": summary.statistics
-                }
+                "status": "SUCCESS", "message": "AI Engine executed successfully!",
+                "summary": {"title": summary.title, "briefing": summary.executive_briefing, "findings": summary.key_findings, "stats": summary.statistics}
             })
         else:
-            return Response({
-                "status": "NO_DATA",
-                "message": "No reports found in the last 24 hours to analyze."
-            })
+            return Response({"status": "NO_DATA", "message": "No reports found in the last 24 hours to analyze."})
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
     
+
 def rewards_dashboard_page(request):
-    """Renders the frontend Rewards Dashboard page"""
     return render(request, 'rewards_dashboard.html')
+
+
 class RedeemRewardView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic # Prevents double-spending (Race Conditions)
+    @transaction.atomic
     def post(self, request):
         serializer = RedeemRewardSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
         reward = serializer.validated_data['reward_id']
         
-        # Lock the profile row to prevent race conditions
-        # Note: If your Profile model is in 'accounts', change this to: accounts.models.Profile
         profile = UserProfile.objects.select_for_update().get(user=request.user)
 
         if profile.total_points < reward.points_required:
-            return Response(
-                {"error": "Insufficient points."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Insufficient points."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Deduct points
         profile.total_points -= reward.points_required
         profile.save()
 
-        # Create a ledger entry using your exact model names
         RewardLedger.objects.create(
             user_profile=profile,
             transaction_type='REDEMPTION',
@@ -299,3 +230,43 @@ class RedeemRewardView(APIView):
             "message": f"Successfully redeemed {reward.title}!",
             "new_balance": profile.total_points
         }, status=status.HTTP_201_CREATED)
+
+
+# ✅ CORRECTLY PLACED OUTSIDE THE CLASS, WITH PROPER PERMISSIONS AND REQUEST.USER
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def debug_rewards(request):
+    """Debug endpoint to see raw reward data"""
+    user_profile = UserProfile.objects.get(user=request.user)
+    
+    all_rewards = RewardCatalog.objects.filter(is_active=True)
+    
+    tier_order = ['CITIZEN', 'VOLUNTEER', 'INFORMANT', 'AGENT']
+    try:
+        user_tier_idx = tier_order.index(user_profile.tier)
+    except ValueError:
+        user_tier_idx = 0
+        
+    available_tiers = tier_order[:user_tier_idx + 1]
+    
+    filtered_rewards = RewardCatalog.objects.filter(
+        is_active=True,
+        min_tier_required__in=available_tiers,
+        points_required__lte=user_profile.total_points
+    )
+    
+    return Response({
+        "user_tier": user_profile.tier,
+        "user_points": user_profile.total_points,
+        "available_tiers": available_tiers,
+        "total_active_rewards": all_rewards.count(),
+        "total_filtered_rewards": filtered_rewards.count(),
+        "all_rewards": [
+            {"title": r.title, "points": r.points_required, "tier_in_db": r.min_tier_required, "is_active": r.is_active}
+            for r in all_rewards
+        ],
+        "filtered_rewards": [
+            {"title": r.title, "points": r.points_required, "tier": r.min_tier_required}
+            for r in filtered_rewards
+        ]
+    })

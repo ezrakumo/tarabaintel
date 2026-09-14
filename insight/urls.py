@@ -1,37 +1,31 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import (
-    ReportViewSet, FieldVerificationViewSet,
-    test_ai_engine, intelligence_briefing_dashboard
-)
-from .views import (
-    ReportViewSet, FieldVerificationViewSet, test_ai_engine, 
-    intelligence_briefing_dashboard, rewards_dashboard_page
-)
-from .rewards_views import (
-    UserProfileViewSet, RewardLedgerViewSet,
-    RewardCatalogView, RedemptionViewSet,
-    MyReportsView, RewardsDashboardView
-)
-from django.urls import path
-from .views import RedeemRewardView # Add this import
+from . import views
+from . import rewards_views
 
+# 1. Register ViewSets
 router = DefaultRouter()
-router.register(r'reports', ReportViewSet, basename='report')
-router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
-router.register(r'rewards/profile', UserProfileViewSet, basename='user-profile')
-router.register(r'rewards/ledger', RewardLedgerViewSet, basename='reward-ledger')
-router.register(r'rewards/redemptions', RedemptionViewSet, basename='redemption')
+router.register(r'reports', views.ReportViewSet, basename='report')
+router.register(r'field-verifications', views.FieldVerificationViewSet, basename='field-verification')
+router.register(r'rewards/profile', rewards_views.UserProfileViewSet, basename='user-profile')
+router.register(r'rewards/ledger', rewards_views.RewardLedgerViewSet, basename='reward-ledger')
+# ✅ REMOVED: RedemptionViewSet (model doesn't exist)
 
+# 2. Define URL Patterns (No duplicates!)
 urlpatterns = [
+    # Include all router URLs
     path('', include(router.urls)),
-    path('test-ai/', test_ai_engine, name='test_ai'),
-    path('briefing/', intelligence_briefing_dashboard, name='intelligence_briefing'),
-    path('rewards/catalog/', RewardCatalogView.as_view(), name='reward-catalog'),
-    path('rewards/my-reports/', MyReportsView.as_view(), name='my-reports'),
-    path('rewards/dashboard/', RewardsDashboardView.as_view(), name='rewards-dashboard'),
-    path('rewards/', rewards_dashboard_page, name='rewards_dashboard_page'),
-    path('rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
     
-
+    # AI & Briefing Endpoints
+    path('test-ai/', views.test_ai_engine, name='test_ai'),
+    path('briefing/', views.intelligence_briefing_dashboard, name='intelligence_briefing'),
+    
+    # Rewards Endpoints
+    path('rewards/catalog/', rewards_views.RewardCatalogView.as_view(), name='reward-catalog'),
+    path('rewards/my-reports/', rewards_views.MyReportsView.as_view(), name='my-reports'),
+    path('rewards/dashboard/', rewards_views.RewardsDashboardView.as_view(), name='rewards-dashboard'),
+    path('rewards/page/', views.rewards_dashboard_page, name='rewards_dashboard_page'),
+    
+    # Redemption Endpoint (Lives in views.py)
+    path('rewards/redeem/', views.RedeemRewardView.as_view(), name='redeem-reward'),
 ]

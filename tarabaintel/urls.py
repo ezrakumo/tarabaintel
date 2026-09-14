@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import (
 )
 from accounts.views import RegisterView, ProfileView
 from insight.views import intelligence_briefing_dashboard
+from .views import RedeemRewardView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,4 +25,6 @@ urlpatterns = [
     
     # Dashboard URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
+    path('rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
+
 ]

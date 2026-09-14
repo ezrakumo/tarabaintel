@@ -29,7 +29,55 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
       _isLoading = false;
     });
   }
+    Future<void> _redeemReward(Reward reward) async {
+    // 1. Show Confirmation Dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1F2937),
+        title: const Text('Confirm Redemption', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Redeem "${reward.title}" for ${reward.pointsRequired} points?',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEAB308)),
+            child: const Text('Confirm', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
 
+    if (confirm != true) return;
+
+    // 2. Call API
+    try {
+      final result = await RewardService.redeemReward(reward.id);
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result?['message'] ?? 'Redeemed successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // 3. Refresh Dashboard to show new point balance
+      _loadData(); 
+      
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -132,34 +180,48 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                       scrollDirection: Axis.horizontal,
                       itemCount: _dashboard!.affordableRewards.length,
                       itemBuilder: (context, index) {
-                        final reward = _dashboard!.affordableRewards[index];
-                        return Container(
-                          width: 220,
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F2937),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF374151)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(reward.title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 8),
-                              Text(reward.description, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                              const Spacer(),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('${reward.pointsRequired} pts', style: const TextStyle(color: Color(0xFFFCD34D), fontWeight: FontWeight.bold)),
-                                  const Icon(Icons.card_giftcard, color: Color(0xFFFCD34D)),
-                                ],
-                              )
-                            ],
-                          ),
-                        );
-                      },
+  final reward = _dashboard!.affordableRewards[index];
+  return Container(
+    width: 220,
+    margin: const EdgeInsets.only(right: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1F2937),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFF374151)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(reward.title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(reward.description, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+        const Spacer(),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('${reward.pointsRequired} pts', style: const TextStyle(color: Color(0xFFFCD34D), fontWeight: FontWeight.bold)),
+            const Icon(Icons.card_giftcard, color: Color(0xFFFCD34D)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => _redeemReward(reward),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEAB308),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            child: const Text('REDEEM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        )
+      ],
+    ),
+  );
+},
                     ),
                   ),
             const SizedBox(height: 24),

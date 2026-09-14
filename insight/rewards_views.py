@@ -129,7 +129,7 @@ class RewardsDashboardView(APIView):
         return Response(dashboard_data)
 
     def _calculate_next_tier(self, profile, tier_order):
-        thresholds = {'Citizen': 0, 'Volunteer': 500, 'Informant': 2000, 'Agent': 5000}
+        thresholds = {'CITIZEN': 0, 'VOLUNTEER': 500, 'INFORMANT': 2000, 'AGENT': 5000}
         current_idx = tier_order.index(profile.tier)
         
         if current_idx >= 3: # Already max tier

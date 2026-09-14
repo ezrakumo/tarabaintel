@@ -26,7 +26,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from .serializers import RedeemRewardSerializer
 from .models import RewardCatalog, RewardLedger
-from users.models import Profile # Adjust if your Profile model is in a different app like 'accounts'
+from accounts.models import Profile # Adjust if your Profile model is in a different app like 'accounts'
 
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')

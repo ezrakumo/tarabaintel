@@ -32,9 +32,12 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
 
+    # ✅ FIXED: Corrected indentation (4 spaces, not 8)
     def perform_create(self, serializer):
-        report = serializer.save(status='RAW')
+        # 1. Save the report as RAW first, explicitly injecting the current user
+        report = serializer.save(status='RAW', submitted_by=self.request.user)
         
+        # 2. Send to AI Microservice (Now Cloud-Native!)
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -59,12 +62,14 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
+                # --- NEW: GRADE INTEL QUALITY AND AWARD POINTS ---
                 try:
                     score, pts = grade_and_reward_report(report)
                     print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
                 except Exception as grading_error:
                     print(f"⚠️ Grading/Reward system failed: {grading_error}")
 
+                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
                     FieldVerification.objects.create(report=report, status='PENDING')
                     print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
@@ -232,7 +237,6 @@ class RedeemRewardView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-# ✅ CORRECTLY PLACED OUTSIDE THE CLASS, WITH PROPER PERMISSIONS AND REQUEST.USER
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def debug_rewards(request):

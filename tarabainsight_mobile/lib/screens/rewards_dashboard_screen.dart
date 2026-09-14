@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/reward_models.dart';
 import '../services/reward_service.dart';
+import 'report_submission_screen.dart'; // ✅ Import for the new screen
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -63,6 +64,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         SnackBar(
           content: Text(result?['message'] ?? 'Redeemed successfully!'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5), // ✅ 5-second duration to catch the pop-up!
         ),
       );
       
@@ -112,6 +114,20 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
           ),
+          // ✅ PERFECTLY CLOSED NEW BUTTON
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: Color(0xFFEAB308)),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ReportSubmissionScreen()),
+              );
+              
+              if (result == true && mounted) {
+                _loadData(); // Refresh dashboard to show newly earned points!
+              }
+            },
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -146,7 +162,9 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                       ),
                     ],
                   ),
-                                    const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Text('${profile.totalPoints}', style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
                   LinearProgressIndicator(
                     value: (profile.totalPoints / (profile.totalPoints + (_dashboard!.pointsToNextTier ?? 0))).toDouble().clamp(0.0, 1.0),
                     backgroundColor: Colors.white24,
@@ -174,7 +192,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                     child: const Text('No rewards available yet. Earn more points!', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                   )
                 : SizedBox(
-                    height: 260, // ✅ FIXED: Increased from 160 to 260 to fit the button perfectly!
+                    height: 260,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: _dashboard!.affordableRewards.length,

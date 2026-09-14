@@ -15,7 +15,6 @@ class LGASerializer(serializers.ModelSerializer):
         model = LGA
         fields = ['id', 'name', 'state', 'population']
 
-
 class ReportSerializer(serializers.ModelSerializer):
     lga_name = serializers.CharField(source='lga.name', read_only=True, default='Unknown')
 
@@ -31,11 +30,15 @@ class ReportSerializer(serializers.ModelSerializer):
             'acknowledgment_sent'
         ]
         read_only_fields = [
-            'id', 'submitted_at', 'ai_suggested_category',
-            'ai_confidence_score', 'ai_sentiment', 'ai_urgency_level',
+            'id', 'submitted_at', 'submitted_by', # ✅ Backend will inject this, frontend shouldn't send it
+            'ai_suggested_category', 'ai_confidence_score',
+            'ai_sentiment', 'ai_urgency_level',
             'ai_extracted_entities', 'intel_quality_score',
             'points_awarded', 'acknowledgment_sent'
         ]
+        extra_kwargs = {
+            'lga': {'required': False, 'allow_null': True}, # ✅ Make LGA optional to prevent crashes
+        }
 
 
 class FieldAgentSerializer(serializers.ModelSerializer):

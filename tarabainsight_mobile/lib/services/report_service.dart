@@ -21,7 +21,7 @@ class ReportService {
       final payload = {
         "description": description,
         "issue_category": issueCategory,
-        "location": locationDetails ?? "Unknown",
+
         // If your backend strictly requires an LGA ID, we might need to fetch LGAs first. 
         // For now, we'll omit 'lga' ID to prevent 400 errors, or you can add it if you have the ID.
       };

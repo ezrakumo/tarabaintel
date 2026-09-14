@@ -24,6 +24,6 @@ urlpatterns = [
     
     # Dashboard URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
-    path('rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
+    
 
 ]

@@ -32,5 +32,6 @@ urlpatterns = [
     path('rewards/dashboard/', RewardsDashboardView.as_view(), name='rewards-dashboard'),
     path('rewards/', rewards_dashboard_page, name='rewards_dashboard_page'),
     path('rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
+    
 
 ]

@@ -48,14 +48,15 @@ class FieldAgentSerializer(serializers.ModelSerializer):
 
 
 class FieldVerificationSerializer(serializers.ModelSerializer):
-    # ✅ NESTED REPORT DATA: This pulls the full report details instead of just the ID
+    # ✅ Pulls full report details so you see Category/Description instead of "Unknown"
     report = ReportSerializer(read_only=True)
-    assigned_agent = serializers.StringRelatedField(read_only=True)
+    # ✅ Pulls the Agent ID as a simple string so Flutter can read it easily
+    assigned_agent_id = serializers.CharField(source='assigned_agent.agent_id', read_only=True, allow_null=True)
 
     class Meta:
         model = FieldVerification
         fields = [
-            'id', 'report', 'assigned_agent', 'status',
+            'id', 'report', 'assigned_agent_id', 'status',
             'assigned_at', 'completed_at', 'is_valid', 'notes'
         ]
         read_only_fields = ['id', 'assigned_at', 'completed_at', 'is_valid', 'notes']

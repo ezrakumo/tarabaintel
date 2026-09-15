@@ -175,12 +175,16 @@ class _FieldAgentDashboardScreenState extends State<FieldAgentDashboardScreen> {
                   itemBuilder: (context, index) {
                     final v = _pendingVerifications[index];
                     final report = (v['report'] is Map) ? v['report'] : {};
-                    final category = report['issue_category']?.toString() ?? 'Unknown';
+                    
+                    // ✅ CORRECTED DATA EXTRACTION
+                    final category = report['issue_category']?.toString() ?? 'Unknown Category';
                     final description = report['description']?.toString() ?? 'No description';
-                    final location = report['lga_name']?.toString() ?? report['location']?.toString() ?? 'Unknown';
+                    final location = report['lga_name']?.toString() ?? report['location']?.toString() ?? 'Unknown Location';
                     final status = v['status']?.toString() ?? 'PENDING';
-                    final assignedAgent = v['assigned_agent'];
-                    final isClaimed = status == 'ASSIGNED' && assignedAgent?['agent_id'] == _agentId;
+                    
+                    // ✅ CORRECTED AGENT CHECK (Matches the new backend string format)
+                    final assignedAgentId = v['assigned_agent_id']?.toString();
+                    final isClaimed = status == 'ASSIGNED' && assignedAgentId == _agentId;
                     final verificationId = v['id']?.toString() ?? '';
 
                     return Card(

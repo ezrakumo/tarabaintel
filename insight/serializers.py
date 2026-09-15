@@ -48,7 +48,7 @@ class FieldAgentSerializer(serializers.ModelSerializer):
 
 
 class FieldVerificationSerializer(serializers.ModelSerializer):
-    # ✅ Pulls full report details so you see Category/Description instead of "Unknown"
+    # ✅ Pulls full report details so you see Category/Description
     report = ReportSerializer(read_only=True)
     # ✅ Pulls the Agent ID as a simple string so Flutter can read it easily
     assigned_agent_id = serializers.CharField(source='assigned_agent.agent_id', read_only=True, allow_null=True)
@@ -56,10 +56,13 @@ class FieldVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldVerification
         fields = [
-            'id', 'report', 'assigned_agent_id', 'status',
-            'assigned_at', 'completed_at', 'is_valid', 'notes'
+            'id', 
+            'report', 
+            'assigned_agent_id', 
+            'status', 
+            'assigned_at'
         ]
-        read_only_fields = ['id', 'assigned_at', 'completed_at', 'is_valid', 'notes']
+        read_only_fields = ['id', 'assigned_at']
 
 
 class VerificationClaimSerializer(serializers.Serializer):

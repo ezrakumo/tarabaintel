@@ -32,12 +32,11 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
 
-    # ✅ FIXED: Corrected indentation (4 spaces, not 8)
     def perform_create(self, serializer):
         # 1. Save the report as RAW first, explicitly injecting the current user
         report = serializer.save(status='RAW', submitted_by=self.request.user)
         
-        # 2. Send to AI Microservice (Now Cloud-Native!)
+        # 2. Send to AI Microservice
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -62,26 +61,34 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
-                # --- NEW: GRADE INTEL QUALITY AND AWARD POINTS ---
-                                # --- NEW: GRADE INTEL QUALITY AND AWARD POINTS ---
+                # --- GRADE INTEL QUALITY AND AWARD POINTS ---
                 try:
                     score, pts = grade_and_reward_report(report)
                     print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
                 except Exception as grading_error:
                     print(f"⚠️ Grading/Reward system failed: {grading_error}")
-                    # ✅ TEMPORARY MOCK: Award 50 points if AI service is down
-                    from .models import RewardLedger
-                    profile = UserProfile.objects.get(user=self.request.user)
-                    profile.total_points += 50
-                    profile.lifetime_points += 50
-                    profile.save()
-                    RewardLedger.objects.create(
-                        user_profile=profile,
-                        transaction_type='REWARD',
-                        points=50,
-                        description=f"Mock AI Grading Reward for Report {report.id}"
-                    )
-                    print(f"🏆 Mock Awarded: 50 points for Report {report.id}")
+
+                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
+                if ai_data.get('urgency_level') == 'CRITICAL':
+                    FieldVerification.objects.create(report=report, status='PENDING')
+                    print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
+                    
+                    try:
+                        lga_name = report.lga.name if report.lga else 'Unknown'
+                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
+                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
+                        send_mail(
+                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
+                        )
+                        print("✅ Flash email alert queued/sent successfully.")
+                    except Exception as email_error:
+                        print(f"️ Failed to send flash email: {email_error}")
+            else:
+                print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
+                
+        except Exception as e:
+            print(f"❌ AI Service unavailable or crashed: {e}")
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):

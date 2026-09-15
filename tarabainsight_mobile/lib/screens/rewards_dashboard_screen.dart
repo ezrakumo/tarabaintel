@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/reward_models.dart';
 import '../services/reward_service.dart';
-import 'report_submission_screen.dart'; // ✅ Import for the new screen
+import 'report_submission_screen.dart';
+import 'field_agent_dashboard_screen.dart'; // ✅ Imported perfectly
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -64,7 +65,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         SnackBar(
           content: Text(result?['message'] ?? 'Redeemed successfully!'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5), // ✅ 5-second duration to catch the pop-up!
+          duration: const Duration(seconds: 5),
         ),
       );
       
@@ -110,11 +111,12 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
+          // 1. Refresh Button
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
           ),
-          // ✅ PERFECTLY CLOSED NEW BUTTON
+          // 2. Submit Report Button (Gold)
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Color(0xFFEAB308)),
             onPressed: () async {
@@ -124,8 +126,19 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
               );
               
               if (result == true && mounted) {
-                _loadData(); // Refresh dashboard to show newly earned points!
+                _loadData(); 
               }
+            },
+          ),
+          // 3. Field Agent Dashboard Button (Green Shield) ✅
+          IconButton(
+            icon: const Icon(Icons.security, color: Colors.green),
+            tooltip: 'Field Agent Dashboard',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FieldAgentDashboardScreen()),
+              );
             },
           ),
         ],

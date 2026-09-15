@@ -48,14 +48,17 @@ class FieldAgentSerializer(serializers.ModelSerializer):
 
 
 class FieldVerificationSerializer(serializers.ModelSerializer):
+    # ✅ NESTED REPORT DATA: This pulls the full report details instead of just the ID
+    report = ReportSerializer(read_only=True)
+    assigned_agent = serializers.StringRelatedField(read_only=True)
+
     class Meta:
         model = FieldVerification
         fields = [
             'id', 'report', 'assigned_agent', 'status',
-            'assigned_at', 'claimed_at', 'verified_at',
-            'notes', 'is_valid'
+            'assigned_at', 'completed_at', 'is_valid', 'notes'
         ]
-        read_only_fields = ['id', 'assigned_at', 'claimed_at', 'verified_at']
+        read_only_fields = ['id', 'assigned_at', 'completed_at', 'is_valid', 'notes']
 
 
 class VerificationClaimSerializer(serializers.Serializer):

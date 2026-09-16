@@ -44,10 +44,12 @@ class ReportViewSet(viewsets.ModelViewSet):
             ai_payload = {
                 "report_id": str(report.id),
                 "description": report.description,
-                "issue_category": report.issue_category
+                "issue_category": report.issue_category,
+                "image_base64": report.image_base64,  # ✅ NOW SENDING THE IMAGE!
             }
             
-            response = requests.post(ai_url, json=ai_payload, timeout=15)
+            # Increased timeout to 45s to allow time for image processing
+            response = requests.post(ai_url, json=ai_payload, timeout=45)
             
             if response.status_code == 200:
                 ai_data = response.json()
@@ -64,9 +66,9 @@ class ReportViewSet(viewsets.ModelViewSet):
                 # --- GRADE INTEL QUALITY AND AWARD POINTS ---
                 try:
                     score, pts = grade_and_reward_report(report)
-                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
+                    print(f" Intel Graded: Score {score}/100, Awarded {pts} points.")
                 except Exception as grading_error:
-                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
+                    print(f"️ Grading/Reward system failed: {grading_error}")
 
                 # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
@@ -83,13 +85,12 @@ class ReportViewSet(viewsets.ModelViewSet):
                         )
                         print("✅ Flash email alert queued/sent successfully.")
                     except Exception as email_error:
-                        print(f"️ Failed to send flash email: {email_error}")
+                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
                 
         except Exception as e:
             print(f"❌ AI Service unavailable or crashed: {e}")
-
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
         response = HttpResponse(content_type='text/csv')

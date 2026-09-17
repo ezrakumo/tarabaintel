@@ -6,8 +6,6 @@ import os
 import dj_database_url
 from datetime import timedelta
 
-from django.db.backends import postgresql
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0'
@@ -15,8 +13,11 @@ SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
-# Tell Django where the PostGIS mapping libraries are located on Windows
-os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
+# Tell Django where the PostGIS mapping libraries are located on Windows (Local only)
+if os.name == 'nt':
+    os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
+    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
+    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -25,17 +26,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third-party apps
     'rest_framework',
-    'rest_framework_simplejwt',  # <-- ADDED FOR JWT AUTH
+    'rest_framework_simplejwt',
     'django.contrib.gis',
     'corsheaders',
-    'accounts',                  # <-- ADDED FOR USER MANAGEMENT
-    'insight',
+    'channels',
     
+    # Your apps
+    'accounts',
+    'insight',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', 
+    'corsheaders.middleware.CorsMiddleware',  # ✅ MUST BE AT THE VERY TOP
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,6 +68,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
+# ✅ FIXED: Changed from 'tarabaintel_ai' to 'tarabaintel' to match your actual folder name!
+ASGI_APPLICATION = 'tarabaintel.asgi.application'
 
 # Database Configuration
 db_url = os.environ.get('DATABASE_URL', 'postgresql://tarabaintel_user:7n2CKWXlQJrCYzlzoaVejxvoRW0sUPih@dpg-dae5d5dbedkc73bd8d20-a.oregon-postgres.render.com/tarabaintel')
@@ -78,11 +85,6 @@ DATABASES = {
 
 if not is_sqlite:
     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
-
-# WINDOWS-SPECIFIC FIX
-if os.name == 'nt':
-    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
-    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
 # Static files
 STATIC_URL = 'static/'
@@ -101,21 +103,16 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Email
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
-
-# CORS SETTINGS
+# ==========================================
+# CORS SETTINGS (Cleaned up, no duplicates)
+# ==========================================
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
 
 # ==========================================
-# JWT AUTHENTICATION SETTINGS (ADDED)
+# JWT AUTHENTICATION SETTINGS
 # ==========================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -132,19 +129,22 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# --- DJANGO 6.1+ MODERN EMAIL CONFIGURATION ---
-MAILERS = {
+# ==========================================
+# EMAIL CONFIGURATION
+# ==========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your_email@gmail.com' # Replace with your actual email
+EMAIL_HOST_PASSWORD = 'your_app_password' # Replace with your actual App Password
+DEFAULT_FROM_EMAIL = 'TarabaInsight Alerts <your_email@gmail.com>'
+
+# ==========================================
+# CHANNELS / WEBSOCKET SETTINGS
+# ==========================================
+CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-        "HOST": "smtp.gmail.com", # Or smtp.sendgrid.net
-        "PORT": 587,
-        "USERNAME": "your_email@gmail.com", # REPLACE WITH YOUR EMAIL
-        "PASSWORD": "your_app_password",    # REPLACE WITH YOUR APP PASSWORD
-        "USE_TLS": True,
-        "TIMEOUT": 10,
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
-DEFAULT_MAILER = "default"
-DEFAULT_FROM_EMAIL = "TarabaInsight Alerts <your_email@gmail.com>"
-# Allow requests from any origin (for testing Flutter Web)
-CORS_ALLOW_ALL_ORIGINS = True

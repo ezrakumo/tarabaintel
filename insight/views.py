@@ -16,7 +16,8 @@ from .serializers import (
     ReportSerializer, 
     FieldVerificationSerializer, 
     VerificationClaimSerializer, 
-    VerificationCompleteSerializer
+    VerificationCompleteSerializer,
+    RedeemRewardSerializer
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
 from insight.services.quality_grader import grade_and_reward_report
@@ -24,8 +25,11 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from .serializers import RedeemRewardSerializer
 from .models import RewardCatalog, RewardLedger, UserProfile
+
+# ✅ WebSocket Imports
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -45,7 +49,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                 "report_id": str(report.id),
                 "description": report.description,
                 "issue_category": report.issue_category,
-                "image_base64": report.image_base64,  # ✅ NOW SENDING THE IMAGE!
+                "image_base64": report.image_base64,
             }
             
             # Increased timeout to 45s to allow time for image processing
@@ -63,12 +67,40 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
                 
+                # ✅ BROADCAST TO REAL-TIME DASHBOARD (WEBSOCKET)
+                channel_layer = get_channel_layer()
+                
+                # Parse the WKT location to simple Lat/Lon for the map
+                lat, lon = 8.8833, 11.3667 # Default Jalingo
+                if report.location:
+                    try:
+                        # Extract coords from "POINT (11.3667 8.8833)"
+                        coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
+                        lon, lat = float(coords[0]), float(coords[1])
+                    except Exception:
+                        pass
+
+                async_to_sync(channel_layer.group_send)(
+                    'intelligence_feed',
+                    {
+                        'type': 'new_threat',
+                        'report': {
+                            'id': str(report.id),
+                            'category': report.issue_category,
+                            'urgency': report.ai_urgency_level,
+                            'description': report.description,
+                            'lat': lat,
+                            'lon': lon
+                        }
+                    } # ✅ FIXED: Added missing closing bracket
+                ) # ✅ FIXED: Added missing closing parenthesis
+                
                 # --- GRADE INTEL QUALITY AND AWARD POINTS ---
                 try:
                     score, pts = grade_and_reward_report(report)
-                    print(f" Intel Graded: Score {score}/100, Awarded {pts} points.")
+                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
                 except Exception as grading_error:
-                    print(f"️ Grading/Reward system failed: {grading_error}")
+                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
 
                 # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
                 if ai_data.get('urgency_level') == 'CRITICAL':
@@ -91,6 +123,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                 
         except Exception as e:
             print(f"❌ AI Service unavailable or crashed: {e}")
+
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
         response = HttpResponse(content_type='text/csv')

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/reward_service.dart';
+import 'command_center_screen.dart'; // ✅ Adds the new screen
 
 class FieldAgentDashboardScreen extends StatefulWidget {
   const FieldAgentDashboardScreen({Key? key}) : super(key: key);
@@ -163,8 +164,21 @@ class _FieldAgentDashboardScreenState extends State<FieldAgentDashboardScreen> {
         title: const Text('Field Agent Dashboard'),
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
-        actions: [IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _loadPendingVerifications)],
-      ),
+        actions: [
+    // ✅ ADD THIS BUTTON TO OPEN THE COMMAND CENTER
+            IconButton(
+                icon: const Icon(Icons.map, color: Colors.green, size: 28),
+                tooltip: 'Open Real-Time Command Center',
+                onPressed: () {
+                    Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CommandCenterScreen()),
+        );
+      },
+    ),
+    const SizedBox(width: 8), // Adds a little spacing
+  ],
+),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFEAB308)))
           : _pendingVerifications.isEmpty

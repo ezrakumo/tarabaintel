@@ -8,3 +8,4 @@ requests>=2.31
 channels>=4.0
 uvicorn
 daphne
+dj-database-url>=1.0.0

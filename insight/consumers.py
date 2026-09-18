@@ -1,7 +1,6 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from rest_framework_simplejwt.tokens import AccessToken
 
 class IntelligenceConsumer(AsyncWebsocketConsumer):
     user = None
@@ -39,8 +38,9 @@ class IntelligenceConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_from_token(self, token):
-        # ✅ FIX: Import User INSIDE the function to prevent AppRegistryNotReady!
-        from django.contrib.auth.models import User 
+        # ✅ FIX: Import BOTH User and AccessToken INSIDE the function
+        from django.contrib.auth.models import User
+        from rest_framework_simplejwt.tokens import AccessToken
         
         try:
             valid_token = AccessToken(token)

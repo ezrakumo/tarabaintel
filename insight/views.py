@@ -1,12 +1,14 @@
 import os
 import csv
+import json
 import requests
 from django.utils import timezone
 from django.shortcuts import render
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -14,7 +16,6 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.contrib.admin.views.decorators import staff_member_required
 
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
@@ -50,9 +51,19 @@ class ReportViewSet(viewsets.ModelViewSet):
         report = serializer.save(status='RAW', submitted_by=self.request.user)
         print(f"💾 Report {report.id} saved to database successfully.")
         
-        # 2. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
-        channel_layer = get_channel_layer()
-        lat, lon = 8.8833, 11.3667  # Default Jalingo
+        # 2. ✅ SMART COORDINATE FALLBACK
+        lga_coords = {
+            'Jalingo': (8.8833, 11.3667),
+            'Wukari': (7.8714, 9.7833),
+            'Gembu': (6.7333, 11.2667),
+            'Bali': (7.8667, 10.9833),
+            'Takum': (7.2333, 10.4167),
+            'Ibi': (7.4833, 9.7500),
+            'Sardauna': (7.0833, 11.5833),
+            'Karim Lamido': (9.4833, 11.1167),
+        }
+        
+        lat, lon = 8.8833, 11.3667  # Default to Jalingo
         
         if report.location:
             try:
@@ -60,7 +71,13 @@ class ReportViewSet(viewsets.ModelViewSet):
                 lon, lat = float(coords[0]), float(coords[1])
             except Exception:
                 pass
+        elif report.lga and report.lga.name in lga_coords:
+            # ✅ FALLBACK: Use LGA centroid if GPS is missing!
+            lat, lon = lga_coords[report.lga.name]
+            print(f"📍 Using LGA fallback coordinates for {report.lga.name}: {lat}, {lon}")
 
+        # 3. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
+        channel_layer = get_channel_layer()
         print(f"📡 Attempting to broadcast Report {report.id} to WebSocket...")
         try:
             async_to_sync(channel_layer.group_send)(
@@ -81,7 +98,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # 3. Send to AI Microservice (in the background)
+        # 4. Send to AI Microservice
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -201,10 +218,6 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-from django.contrib.admin.views.decorators import staff_member_required # Add this import at the top of views.py if not present
-from django.db.models import Count, Q
-import json
-
 @staff_member_required  # ✅ SECURE: Only logged-in admin/staff can view this
 def intelligence_briefing_dashboard(request):
     # 1. Get the latest AI summary
@@ -244,9 +257,9 @@ def intelligence_briefing_dashboard(request):
     context = {
         'latest_summary': latest_summary, 
         'recent_alerts': recent_alerts,
-        'chart_labels': chart_labels, 
-        'chart_volumes': chart_volumes, 
-        'chart_critical': chart_critical,
+        'chart_labels': json.dumps(chart_labels), 
+        'chart_volumes': json.dumps(chart_volumes), 
+        'chart_critical': json.dumps(chart_critical),
         'total_reports': total_reports, 
         'critical_incidents': critical_incidents,
         'hotspots_identified': hotspots_identified, 

@@ -417,4 +417,33 @@ def debug_rewards(request):
             {"title": r.title, "points": r.points_required, "tier": r.min_tier_required}
             for r in filtered_rewards
         ]
+@api_view(['GET'])
+def trigger_weekly_forecast(request):
+    """
+    Secure webhook to trigger the weekly forecast management command.
+    Protects against unauthorized execution using a secret token.
+    """
+    from django.core.management import call_command
+    
+    secret_token = request.GET.get('token', '')
+    expected_token = os.environ.get('AI_CRON_SECRET', 'super_secret_default_token_123')
+    
+    if secret_token != expected_token:
+        return Response({"status": "UNAUTHORIZED", "message": "Invalid secret token"}, status=403)
+
+    try:
+        # Call the management command we created
+        call_command('generate_weekly_forecast')
+        return Response({
+            "status": "SUCCESS", 
+            "message": "Weekly forecast generation and email dispatch initiated successfully."
+        })
+    except Exception as e:
+        return Response({"status": "ERROR", "message": str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def debug_rewards(request):
+    """Debug endpoint to see raw reward data"""
+    # ... [keep your existing debug_rewards code exactly as it is] ...
     })

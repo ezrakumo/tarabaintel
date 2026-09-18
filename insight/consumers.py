@@ -2,16 +2,20 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
-from django.contrib.auth.models import User
 
 class IntelligenceConsumer(AsyncWebsocketConsumer):
     user = None
 
     async def connect(self):
-        # 1. Extract token from URL query string: ?token=YOUR_JWT_TOKEN
-        token = self.scope['url_route']['kwargs'].get('token') or self.scope['query_string'].decode().split('token=')[-1]
+        # 1. Extract token from URL query string
+        query_string = self.scope.get('query_string', b'').decode()
+        token = None
+        for part in query_string.split('&'):
+            if part.startswith('token='):
+                token = part.split('=')[1]
+                break
         
-        if not token or token == 'null':
+        if not token:
             print("❌ WebSocket connection rejected: No token provided.")
             await self.close()
             return
@@ -35,8 +39,10 @@ class IntelligenceConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_from_token(self, token):
+        # ✅ FIX: Import User INSIDE the function to prevent AppRegistryNotReady!
+        from django.contrib.auth.models import User 
+        
         try:
-            # Validate token and get user
             valid_token = AccessToken(token)
             user_id = valid_token['user_id']
             return User.objects.get(id=user_id)

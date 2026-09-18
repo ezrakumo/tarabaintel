@@ -8,6 +8,7 @@ from accounts.views import RegisterView, ProfileView
 from insight.views import intelligence_briefing_dashboard
 from insight.views import predictive_hotspots
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     

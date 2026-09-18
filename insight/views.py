@@ -304,27 +304,89 @@ def rewards_dashboard_page(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def rewards_dashboard_api(request):
-    """API endpoint for the Flutter rewards dashboard"""
+def predictive_hotspots(request):
+    days = int(request.GET.get('days', 30))
+    
     try:
-        profile = UserProfile.objects.get(user=request.user)
-        
-        available_rewards = RewardCatalog.objects.filter(
-            is_active=True,
-            points_required__lte=profile.total_points
-        ).values('id', 'title', 'points_required')
+        predictor = HotspotPredictor(eps=0.02, min_samples=2) 
+        hotspots = predictor.generate_hotspots(days=days)
         
         return Response({
             'status': 'success',
-            'user_tier': profile.tier,
-            'total_points': profile.total_points,
-            'available_rewards': list(available_rewards)
+            'days_analyzed': days,
+            'hotspot_count': len(hotspots),
+            'hotspots': hotspots
         })
-    except UserProfile.DoesNotExist:
-        return Response({'status': 'error', 'message': 'User profile not found'}, status=404)
+    
     except Exception as e:
-        print(f"❌ Rewards dashboard API error: {e}")
-        return Response({'status': 'error', 'message': str(e)}, status=500)
+        print(f"❌ Predictive analytics failed: {e}")
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+@api_view(['GET'])
+def trigger_weekly_forecast(request):
+    """
+    Secure webhook to trigger the weekly forecast management command.
+    Protects against unauthorized execution using a secret token.
+    """
+    from django.core.management import call_command
+    
+    secret_token = request.GET.get('token', '')
+    expected_token = os.environ.get('AI_CRON_SECRET', 'super_secret_default_token_123')
+    
+    if secret_token != expected_token:
+        return Response({"status": "UNAUTHORIZED", "message": "Invalid secret token"}, status=403)
+
+    try:
+        call_command('generate_weekly_forecast')
+        return Response({
+            "status": "SUCCESS", 
+            "message": "Weekly forecast generation and email dispatch initiated successfully."
+        })
+    except Exception as e:
+        return Response({"status": "ERROR", "message": str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def debug_rewards(request):
+    """Debug endpoint to see raw reward data"""
+    user_profile = UserProfile.objects.get(user=request.user)
+    
+    all_rewards = RewardCatalog.objects.filter(is_active=True)
+    
+    tier_order = ['CITIZEN', 'VOLUNTEER', 'INFORMANT', 'AGENT']
+    try:
+        user_tier_idx = tier_order.index(user_profile.tier)
+    except ValueError:
+        user_tier_idx = 0
+        
+    available_tiers = tier_order[:user_tier_idx + 1]
+    
+    filtered_rewards = RewardCatalog.objects.filter(
+        is_active=True,
+        min_tier_required__in=available_tiers,
+        points_required__lte=user_profile.total_points
+    )
+    
+    return Response({
+        "user_tier": user_profile.tier,
+        "user_points": user_profile.total_points,
+        "available_tiers": available_tiers,
+        "total_active_rewards": all_rewards.count(),
+        "total_filtered_rewards": filtered_rewards.count(),
+        "all_rewards": [
+            {"title": r.title, "points": r.points_required, "tier_in_db": r.min_tier_required, "is_active": r.is_active}
+            for r in all_rewards
+        ],
+        "filtered_rewards": [
+            {"title": r.title, "points": r.points_required, "tier": r.min_tier_required}
+            for r in filtered_rewards
+        ]
+    })
 
 
 class RedeemRewardView(APIView):

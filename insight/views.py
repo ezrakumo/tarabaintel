@@ -45,7 +45,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
 
-        def perform_create(self, serializer):
+    def perform_create(self, serializer):
         print(f"📝 Starting report creation for user: {self.request.user}")
         
         # 1. Save the report as RAW first
@@ -66,7 +66,6 @@ class ReportViewSet(viewsets.ModelViewSet):
         
         lat, lon = 8.8833, 11.3667  # Default to Jalingo
         
-        # 🔥 DEBUG PRINT: Let's see exactly what the database says the LGA name is!
         print(f"🔍 DEBUG: Report LGA name from DB is: '{report.lga.name if report.lga else 'None'}'")
 
         if report.location:
@@ -76,12 +75,9 @@ class ReportViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         elif report.lga and report.lga.name in lga_coords:
-            # ✅ FALLBACK: Use LGA centroid if GPS is missing!
             lat, lon = lga_coords[report.lga.name]
             print(f"📍 Using LGA fallback coordinates for {report.lga.name}: {lat}, {lon}")
             
-            # 🔥 CRITICAL FIX: Actually save this location to the database 
-            from django.contrib.gis.geos import Point
             report.location = Point(lon, lat)
             report.save(update_fields=['location'])
             print(f"💾 Saved fallback location to database for Report {report.id}")
@@ -90,7 +86,7 @@ class ReportViewSet(viewsets.ModelViewSet):
 
         # 3. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
         channel_layer = get_channel_layer()
-        print(f" Attempting to broadcast Report {report.id} to WebSocket...")
+        print(f"📡 Attempting to broadcast Report {report.id} to WebSocket...")
         try:
             async_to_sync(channel_layer.group_send)(
                 'intelligence_feed',
@@ -110,7 +106,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # 4. Send to AI Microservice (Keep your existing AI code here...)
+        # 4. Send to AI Microservice
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -133,8 +129,33 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
+                
+                # --- GRADE INTEL QUALITY AND AWARD POINTS ---
+                try:
+                    score, pts = grade_and_reward_report(report)
+                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
+                except Exception as grading_error:
+                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
+
+                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
+                if ai_data.get('urgency_level') == 'CRITICAL':
+                    FieldVerification.objects.create(report=report, status='PENDING')
+                    print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
+                    
+                    try:
+                        lga_name = report.lga.name if report.lga else 'Unknown'
+                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
+                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
+                        send_mail(
+                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
+                        )
+                        print("✅ Flash email alert queued/sent successfully.")
+                    except Exception as email_error:
+                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
+                
         except Exception as e:
             print(f"❌ AI Service unavailable or crashed: {e}")
 
@@ -205,29 +226,22 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@staff_member_required  # ✅ SECURE: Only logged-in admin/staff can view this
+@staff_member_required
 def intelligence_briefing_dashboard(request):
-    # 1. Get the latest AI summary
     latest_summary = IntelligenceSummary.objects.first()
-    
-    # 2. Get recent unacknowledged alerts
     recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
-    
-    # 3. Get history for the 7-day trend chart
     summaries_history = IntelligenceSummary.objects.order_by('-generated_at')[:7]
     
     chart_labels = []
     chart_volumes = []
     chart_critical = []
     
-    # Reverse to show oldest to newest on the chart
     for summary in reversed(summaries_history):
         chart_labels.append(summary.generated_at.strftime('%b %d'))
         stats = summary.statistics or {}
         chart_volumes.append(stats.get('total_reports', 0))
         chart_critical.append(stats.get('critical_incidents', 0))
         
-    # 4. Extract stats safely (with fallback to real-time DB counts if AI hasn't run yet)
     if latest_summary and latest_summary.statistics:
         stats = latest_summary.statistics
         total_reports = stats.get('total_reports', 0)
@@ -235,7 +249,6 @@ def intelligence_briefing_dashboard(request):
         hotspots_identified = stats.get('hotspots_identified', 0)
         trend = stats.get('trend', 'STABLE')
     else:
-        # Fallback: Calculate real-time if no AI summary exists yet
         total_reports = Report.objects.count()
         critical_incidents = Report.objects.filter(ai_urgency_level='CRITICAL').count()
         hotspots_identified = 0
@@ -289,6 +302,31 @@ def rewards_dashboard_page(request):
     return render(request, 'rewards_dashboard.html')
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def rewards_dashboard_api(request):
+    """API endpoint for the Flutter rewards dashboard"""
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+        
+        available_rewards = RewardCatalog.objects.filter(
+            is_active=True,
+            points_required__lte=profile.total_points
+        ).values('id', 'title', 'points_required')
+        
+        return Response({
+            'status': 'success',
+            'user_tier': profile.tier,
+            'total_points': profile.total_points,
+            'available_rewards': list(available_rewards)
+        })
+    except UserProfile.DoesNotExist:
+        return Response({'status': 'error', 'message': 'User profile not found'}, status=404)
+    except Exception as e:
+        print(f"❌ Rewards dashboard API error: {e}")
+        return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
 class RedeemRewardView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -325,8 +363,6 @@ def predictive_hotspots(request):
     days = int(request.GET.get('days', 30))
     
     try:
-        #  FIX: Changed eps from 0.1 (637km) to 0.02 (approx 120km).
-        # This prevents distant LGAs from merging into one giant circle!
         predictor = HotspotPredictor(eps=0.02, min_samples=2) 
         hotspots = predictor.generate_hotspots(days=days)
         
@@ -381,28 +417,4 @@ def debug_rewards(request):
             {"title": r.title, "points": r.points_required, "tier": r.min_tier_required}
             for r in filtered_rewards
         ]
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def rewards_dashboard_api(request):
-    """API endpoint for the Flutter rewards dashboard"""
-    try:
-        profile = UserProfile.objects.get(user=request.user)
-        
-        # Get available rewards the user can afford
-        available_rewards = RewardCatalog.objects.filter(
-            is_active=True,
-            points_required__lte=profile.total_points
-        ).values('id', 'title', 'points_required')
-        
-        return Response({
-            'status': 'success',
-            'user_tier': profile.tier,
-            'total_points': profile.total_points,
-            'available_rewards': list(available_rewards)
-        })
-    except UserProfile.DoesNotExist:
-        return Response({'status': 'error', 'message': 'User profile not found'}, status=404)
-    except Exception as e:
-        print(f"❌ Rewards dashboard API error: {e}")
-        return Response({'status': 'error', 'message': str(e)}, status=500)
     })

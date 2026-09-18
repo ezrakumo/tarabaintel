@@ -35,12 +35,45 @@ from asgiref.sync import async_to_sync
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
-
-    def perform_create(self, serializer):
-        # 1. Save the report as RAW first, explicitly injecting the current user
-        report = serializer.save(status='RAW', submitted_by=self.request.user)
+        def perform_create(self, serializer):
+        print(f"📝 Starting report creation for user: {self.request.user}")
         
-        # 2. Send to AI Microservice
+        # 1. Save the report as RAW first
+        report = serializer.save(status='RAW', submitted_by=self.request.user)
+        print(f"💾 Report {report.id} saved to database successfully.")
+        
+        # 2. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
+        channel_layer = get_channel_layer()
+        lat, lon = 8.8833, 11.3667 # Default Jalingo
+        
+        if report.location:
+            try:
+                coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
+                lon, lat = float(coords[0]), float(coords[1])
+            except Exception:
+                pass
+
+        print(f"📡 Attempting to broadcast Report {report.id} to WebSocket...")
+        try:
+            async_to_sync(channel_layer.group_send)(
+                'intelligence_feed',
+                {
+                    'type': 'new_threat',
+                    'report': {
+                        'id': str(report.id),
+                        'category': report.issue_category or 'UNKNOWN',
+                        'urgency': 'MODERATE', # Default urgency until AI updates it
+                        'description': report.description,
+                        'lat': lat,
+                        'lon': lon
+                    }
+                }
+            )
+            print(f"✅ WebSocket broadcast SUCCESSFUL for Report {report.id}")
+        except Exception as ws_error:
+            print(f"❌ WebSocket broadcast FAILED: {ws_error}")
+
+        # 3. Send to AI Microservice (in the background, doesn't block the map update)
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -52,72 +85,17 @@ class ReportViewSet(viewsets.ModelViewSet):
                 "image_base64": report.image_base64,
             }
             
-            # Increased timeout to 45s to allow time for image processing
             response = requests.post(ai_url, json=ai_payload, timeout=45)
             
             if response.status_code == 200:
                 ai_data = response.json()
-                
                 report.ai_suggested_category = ai_data.get('ai_suggested_category', '')
                 report.ai_confidence_score = float(ai_data.get('ai_confidence_score', 0.0))
                 report.ai_sentiment = ai_data.get('sentiment', '')
                 report.ai_urgency_level = ai_data.get('urgency_level', '')
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
-                
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
-                
-                # ✅ BROADCAST TO REAL-TIME DASHBOARD (WEBSOCKET)
-                channel_layer = get_channel_layer()
-                
-                # Parse the WKT location to simple Lat/Lon for the map
-                lat, lon = 8.8833, 11.3667 # Default Jalingo
-                if report.location:
-                    try:
-                        # Extract coords from "POINT (11.3667 8.8833)"
-                        coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
-                        lon, lat = float(coords[0]), float(coords[1])
-                    except Exception:
-                        pass
-
-                async_to_sync(channel_layer.group_send)(
-                    'intelligence_feed',
-                    {
-                        'type': 'new_threat',
-                        'report': {
-                            'id': str(report.id),
-                            'category': report.issue_category,
-                            'urgency': report.ai_urgency_level,
-                            'description': report.description,
-                            'lat': lat,
-                            'lon': lon
-                        }
-                    } # ✅ FIXED: Added missing closing bracket
-                ) # ✅ FIXED: Added missing closing parenthesis
-                
-                # --- GRADE INTEL QUALITY AND AWARD POINTS ---
-                try:
-                    score, pts = grade_and_reward_report(report)
-                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
-                except Exception as grading_error:
-                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
-
-                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
-                if ai_data.get('urgency_level') == 'CRITICAL':
-                    FieldVerification.objects.create(report=report, status='PENDING')
-                    print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
-                    
-                    try:
-                        lga_name = report.lga.name if report.lga else 'Unknown'
-                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
-                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
-                        send_mail(
-                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
-                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
-                        )
-                        print("✅ Flash email alert queued/sent successfully.")
-                    except Exception as email_error:
-                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
                 

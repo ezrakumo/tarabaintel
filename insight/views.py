@@ -10,8 +10,16 @@ from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 
-from .models import Report, FieldAgent, FieldVerification, LGA, IntelligenceSummary, PatternAlert
+from .models import (
+    Report, FieldAgent, FieldVerification, LGA, 
+    IntelligenceSummary, PatternAlert, RewardCatalog, 
+    RewardLedger, UserProfile
+)
 from .serializers import (
     ReportSerializer, 
     FieldVerificationSerializer, 
@@ -21,11 +29,6 @@ from .serializers import (
 )
 from insight.services.intelligence_service import IntelligenceGenerationService
 from insight.services.quality_grader import grade_and_reward_report
-from rest_framework.views import APIView
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from .models import RewardCatalog, RewardLedger, UserProfile
 
 # ✅ WebSocket Imports
 from channels.layers import get_channel_layer
@@ -35,7 +38,8 @@ from asgiref.sync import async_to_sync
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
-        def perform_create(self, serializer):
+
+    def perform_create(self, serializer):
         print(f"📝 Starting report creation for user: {self.request.user}")
         
         # 1. Save the report as RAW first
@@ -44,7 +48,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         
         # 2. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
         channel_layer = get_channel_layer()
-        lat, lon = 8.8833, 11.3667 # Default Jalingo
+        lat, lon = 8.8833, 11.3667  # Default Jalingo
         
         if report.location:
             try:
@@ -62,7 +66,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                     'report': {
                         'id': str(report.id),
                         'category': report.issue_category or 'UNKNOWN',
-                        'urgency': 'MODERATE', # Default urgency until AI updates it
+                        'urgency': 'MODERATE',
                         'description': report.description,
                         'lat': lat,
                         'lon': lon
@@ -73,7 +77,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # 3. Send to AI Microservice (in the background, doesn't block the map update)
+        # 3. Send to AI Microservice (in the background)
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -96,6 +100,30 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
+                
+                # --- GRADE INTEL QUALITY AND AWARD POINTS ---
+                try:
+                    score, pts = grade_and_reward_report(report)
+                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
+                except Exception as grading_error:
+                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
+
+                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
+                if ai_data.get('urgency_level') == 'CRITICAL':
+                    FieldVerification.objects.create(report=report, status='PENDING')
+                    print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
+                    
+                    try:
+                        lga_name = report.lga.name if report.lga else 'Unknown'
+                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
+                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
+                        send_mail(
+                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
+                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
+                        )
+                        print("✅ Flash email alert queued/sent successfully.")
+                    except Exception as email_error:
+                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
                 
@@ -182,10 +210,15 @@ def intelligence_briefing_dashboard(request):
         
     stats = latest_summary.statistics if latest_summary else {}
     context = {
-        'latest_summary': latest_summary, 'recent_alerts': recent_alerts,
-        'chart_labels': chart_labels, 'chart_volumes': chart_volumes, 'chart_critical': chart_critical,
-        'total_reports': stats.get('total_reports', 0), 'critical_incidents': stats.get('critical_incidents', 0),
-        'hotspots_identified': stats.get('hotspots_identified', 0), 'trend': stats.get('trend', 'STABLE'),
+        'latest_summary': latest_summary, 
+        'recent_alerts': recent_alerts,
+        'chart_labels': chart_labels, 
+        'chart_volumes': chart_volumes, 
+        'chart_critical': chart_critical,
+        'total_reports': stats.get('total_reports', 0), 
+        'critical_incidents': stats.get('critical_incidents', 0),
+        'hotspots_identified': stats.get('hotspots_identified', 0), 
+        'trend': stats.get('trend', 'STABLE'),
     }
     return render(request, 'intelligence_dashboard.html', context)
 
@@ -206,7 +239,12 @@ def test_ai_engine(request):
         if summary:
             return Response({
                 "status": "SUCCESS", "message": "AI Engine executed successfully!",
-                "summary": {"title": summary.title, "briefing": summary.executive_briefing, "findings": summary.key_findings, "stats": summary.statistics}
+                "summary": {
+                    "title": summary.title, 
+                    "briefing": summary.executive_briefing, 
+                    "findings": summary.key_findings, 
+                    "stats": summary.statistics
+                }
             })
         else:
             return Response({"status": "NO_DATA", "message": "No reports found in the last 24 hours to analyze."})

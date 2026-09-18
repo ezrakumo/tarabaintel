@@ -200,29 +200,44 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+from django.contrib.admin.views.decorators import staff_member_required # Add this import at the top of views.py if not present
+from django.db.models import Count, Q
+import json
+
+@staff_member_required # ✅ SECURE: Only allows logged-in admin/staff users
 def intelligence_briefing_dashboard(request):
-    latest_summary = IntelligenceSummary.objects.first()
-    recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
-    summaries_history = IntelligenceSummary.objects.order_by('generated_at')[:7]
+    # 1. High-Level Stats
+    total_reports = Report.objects.count()
+    critical_reports = Report.objects.filter(ai_urgency_level='CRITICAL').count()
+    pending_verifications = FieldVerification.objects.filter(status='PENDING').count()
     
-    chart_labels, chart_volumes, chart_critical = [], [], []
-    for summary in summaries_history:
-        chart_labels.append(summary.generated_at.strftime('%b %d'))
-        chart_volumes.append(summary.statistics.get('total_reports', 0))
-        chart_critical.append(summary.statistics.get('critical_incidents', 0))
-        
-    stats = latest_summary.statistics if latest_summary else {}
+    # 2. Reports by LGA (Top 5 Hotspots)
+    lga_stats = Report.objects.values('lga__name').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    lga_labels = [stat['lga__name'] or 'Unknown' for stat in lga_stats]
+    lga_counts = [stat['count'] for stat in lga_stats]
+    
+    # 3. Reports by Status (for Pie Chart)
+    status_stats = Report.objects.values('status').annotate(count=Count('id'))
+    status_labels = [stat['status'] for stat in status_stats]
+    status_counts = [stat['count'] for stat in status_stats]
+    
+    # 4. Recent Activity (Last 5 Reports)
+    recent_reports = Report.objects.select_related('lga').order_by('-submitted_at')[:5]
+    
     context = {
-        'latest_summary': latest_summary, 
-        'recent_alerts': recent_alerts,
-        'chart_labels': chart_labels, 
-        'chart_volumes': chart_volumes, 
-        'chart_critical': chart_critical,
-        'total_reports': stats.get('total_reports', 0), 
-        'critical_incidents': stats.get('critical_incidents', 0),
-        'hotspots_identified': stats.get('hotspots_identified', 0), 
-        'trend': stats.get('trend', 'STABLE'),
+        'total_reports': total_reports,
+        'critical_reports': critical_reports,
+        'pending_verifications': pending_verifications,
+        'lga_labels': json.dumps(lga_labels),
+        'lga_counts': json.dumps(lga_counts),
+        'status_labels': json.dumps(status_labels),
+        'status_counts': json.dumps(status_counts),
+        'recent_reports': recent_reports,
     }
+    
     return render(request, 'intelligence_dashboard.html', context)
 
 

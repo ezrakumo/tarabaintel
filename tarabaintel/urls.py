@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import (
 from accounts.views import RegisterView, ProfileView
 from insight.views import intelligence_briefing_dashboard
 from insight.views import predictive_hotspots
+from insight.views import rewards_dashboard_api
 
 
 

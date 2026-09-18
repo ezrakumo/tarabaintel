@@ -132,7 +132,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
-
+# ✅ SECURE HOSTS: Allow Render domain AND local testing
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Force-add these to prevent local testing from being blocked
+for host in ['localhost', '127.0.0.1', 'tarabaintel-ai.onrender.com']:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 # ==========================================
 # JWT AUTHENTICATION SETTINGS
 # ==========================================

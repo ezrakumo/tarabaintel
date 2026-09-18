@@ -255,6 +255,36 @@ def test_ai_engine(request):
 def rewards_dashboard_page(request):
     return render(request, 'rewards_dashboard.html')
 
+    @api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def predictive_hotspots(request):
+    """
+    API endpoint to retrieve predictive threat hotspots.
+    Returns geographic zones with high threat density.
+    """
+    from .services.hotspot_predictor import HotspotPredictor
+    
+    # Get days parameter from query string (default: 30)
+    days = int(request.GET.get('days', 30))
+    
+    try:
+        predictor = HotspotPredictor(eps=0.05, min_samples=3)
+        hotspots = predictor.generate_hotspots(days=days)
+        
+        return Response({
+            'status': 'success',
+            'days_analyzed': days,
+            'hotspot_count': len(hotspots),
+            'hotspots': hotspots
+        })
+    
+    except Exception as e:
+        print(f"❌ Predictive analytics failed: {e}")
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
 
 class RedeemRewardView(APIView):
     permission_classes = [IsAuthenticated]

@@ -158,13 +158,23 @@ SIMPLE_JWT = {
 # ==========================================
 # EMAIL CONFIGURATION
 # ==========================================
+# ✅ BULLETPROOF GMAIL SMTP CONFIGURATION FOR RENDER
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your_email@gmail.com' # Replace with your actual email
-EMAIL_HOST_PASSWORD = 'your_app_password' # Replace with your actual App Password
-DEFAULT_FROM_EMAIL = 'TarabaInsight Alerts <your_email@gmail.com>'
+EMAIL_USE_SSL = False
+
+# Read credentials from Render Environment Variables
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# ✅ Weekly Forecast Recipients
+WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
+    'WEEKLY_FORECAST_RECIPIENTS', 
+    'admin@tarabaintel.gov.ng,ops@tarabaintel.gov.ng'
+).split(',')
 
 # ==========================================
 # CHANNELS / WEBSOCKET SETTINGS

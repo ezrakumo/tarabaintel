@@ -6,7 +6,7 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ✅ 1. SECURE SECRET KEY: Read from Render Environment Variables
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-for-local-dev-only')
 
 # ✅ 2. SECURE DEBUG: Strictly controlled by Environment Variable
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
@@ -29,8 +29,8 @@ CSRF_COOKIE_SECURE = True
 # ... [KEEP YOUR DATABASE CONFIGURATION AS IS, it already uses os.environ.get('DATABASE_URL')] ...
 
 # ✅ 6. SECURE EMAIL: Read from Environment Variables
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '#MYGMAIL1@.kure2#')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'your_email@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'your_app_password')
 
 # Tell Django where the PostGIS mapping libraries are located on Windows (Local only)
 if os.name == 'nt':

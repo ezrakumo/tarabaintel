@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from insight.views import trigger_weekly_forecast
 
 # ✅ EXPLICITLY IMPORT ALL THE VIEWS WE NEED
 from insight.views import (
@@ -27,4 +28,5 @@ urlpatterns = [
     
     path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
     path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
+    path('api/cron/weekly-forecast/', trigger_weekly_forecast, name='weekly-forecast-cron'),
 ]

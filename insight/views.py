@@ -325,9 +325,9 @@ def predictive_hotspots(request):
     days = int(request.GET.get('days', 30))
     
     try:
-        # ✅ TUNED FOR HIGHER SENSITIVITY: 
-        # eps=0.1 (approx 10km radius), min_samples=2 (only needs 2 reports to form a cluster)
-        predictor = HotspotPredictor(eps=0.1, min_samples=2) 
+        #  FIX: Changed eps from 0.1 (637km) to 0.02 (approx 120km).
+        # This prevents distant LGAs from merging into one giant circle!
+        predictor = HotspotPredictor(eps=0.02, min_samples=2) 
         hotspots = predictor.generate_hotspots(days=days)
         
         return Response({

@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.contrib.gis.geos import Point
 
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
@@ -44,7 +45,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
 
-    def perform_create(self, serializer):
+        def perform_create(self, serializer):
         print(f"📝 Starting report creation for user: {self.request.user}")
         
         # 1. Save the report as RAW first
@@ -65,6 +66,9 @@ class ReportViewSet(viewsets.ModelViewSet):
         
         lat, lon = 8.8833, 11.3667  # Default to Jalingo
         
+        # 🔥 DEBUG PRINT: Let's see exactly what the database says the LGA name is!
+        print(f"🔍 DEBUG: Report LGA name from DB is: '{report.lga.name if report.lga else 'None'}'")
+
         if report.location:
             try:
                 coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
@@ -75,10 +79,18 @@ class ReportViewSet(viewsets.ModelViewSet):
             # ✅ FALLBACK: Use LGA centroid if GPS is missing!
             lat, lon = lga_coords[report.lga.name]
             print(f"📍 Using LGA fallback coordinates for {report.lga.name}: {lat}, {lon}")
+            
+            # 🔥 CRITICAL FIX: Actually save this location to the database 
+            from django.contrib.gis.geos import Point
+            report.location = Point(lon, lat)
+            report.save(update_fields=['location'])
+            print(f"💾 Saved fallback location to database for Report {report.id}")
+        else:
+            print(f"⚠️ WARNING: LGA '{report.lga.name}' not found in fallback dictionary!")
 
         # 3. ✅ BROADCAST TO REAL-TIME DASHBOARD IMMEDIATELY
         channel_layer = get_channel_layer()
-        print(f"📡 Attempting to broadcast Report {report.id} to WebSocket...")
+        print(f" Attempting to broadcast Report {report.id} to WebSocket...")
         try:
             async_to_sync(channel_layer.group_send)(
                 'intelligence_feed',
@@ -98,7 +110,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # 4. Send to AI Microservice
+        # 4. Send to AI Microservice (Keep your existing AI code here...)
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             ai_url = f"{ai_base_url}/analyze"
@@ -121,33 +133,8 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
                 report.save()
                 print(f"✅ AI Analysis successful for Report {report.id}")
-                
-                # --- GRADE INTEL QUALITY AND AWARD POINTS ---
-                try:
-                    score, pts = grade_and_reward_report(report)
-                    print(f"🏆 Intel Graded: Score {score}/100, Awarded {pts} points.")
-                except Exception as grading_error:
-                    print(f"⚠️ Grading/Reward system failed: {grading_error}")
-
-                # AUTO-ASSIGNMENT & EMAIL ALERT: If AI flagged as CRITICAL
-                if ai_data.get('urgency_level') == 'CRITICAL':
-                    FieldVerification.objects.create(report=report, status='PENDING')
-                    print(f"🚨 CRITICAL report detected! Auto-created verification task for Report {report.id}")
-                    
-                    try:
-                        lga_name = report.lga.name if report.lga else 'Unknown'
-                        subject = f"🚨 CRITICAL THREAT ALERT: {report.issue_category} in {lga_name}"
-                        message = f"URGENT INTELLIGENCE ALERT\n\nA CRITICAL threat has been reported.\nDescription: {report.description}\nLocation: {lga_name}\nAI Confidence: {report.ai_confidence_score}%\nTime: {report.submitted_at}\n\nLogin to the Command Center immediately to review."
-                        send_mail(
-                            subject, message, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@tarabaintel.com'), 
-                            ['admin@tarabaintel.gov.ng', 'ops@tarabaintel.gov.ng'], fail_silently=True
-                        )
-                        print("✅ Flash email alert queued/sent successfully.")
-                    except Exception as email_error:
-                        print(f"⚠️ Failed to send flash email: {email_error}")
             else:
                 print(f"⚠️ AI Service returned status {response.status_code}: {response.text}")
-                
         except Exception as e:
             print(f"❌ AI Service unavailable or crashed: {e}")
 

@@ -381,4 +381,28 @@ def debug_rewards(request):
             {"title": r.title, "points": r.points_required, "tier": r.min_tier_required}
             for r in filtered_rewards
         ]
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def rewards_dashboard_api(request):
+    """API endpoint for the Flutter rewards dashboard"""
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+        
+        # Get available rewards the user can afford
+        available_rewards = RewardCatalog.objects.filter(
+            is_active=True,
+            points_required__lte=profile.total_points
+        ).values('id', 'title', 'points_required')
+        
+        return Response({
+            'status': 'success',
+            'user_tier': profile.tier,
+            'total_points': profile.total_points,
+            'available_rewards': list(available_rewards)
+        })
+    except UserProfile.DoesNotExist:
+        return Response({'status': 'error', 'message': 'User profile not found'}, status=404)
+    except Exception as e:
+        print(f"❌ Rewards dashboard API error: {e}")
+        return Response({'status': 'error', 'message': str(e)}, status=500)
     })

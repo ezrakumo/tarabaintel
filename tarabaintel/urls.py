@@ -32,5 +32,8 @@ urlpatterns = [
     # Add this to the urlpatterns list
     path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
     
-
+    path('api/rewards/dashboard/', views.rewards_dashboard_api, name='rewards-dashboard-api'),
+    
+    # (Keep the HTML version for web browsers at a different URL if needed)
+    path('rewards/dashboard/', views.rewards_dashboard_page, name='rewards-dashboard-web'),
 ]

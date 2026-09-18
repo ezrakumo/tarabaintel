@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import (
 )
 from accounts.views import RegisterView, ProfileView
 from insight.views import intelligence_briefing_dashboard
+from insight.views import predictive_hotspots
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,6 +25,10 @@ urlpatterns = [
     
     # Dashboard URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
+
+    # Add this import at the top with the other imports
+    # Add this to the urlpatterns list
+    path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
     
 
 ]

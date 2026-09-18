@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from django.contrib.admin.views.decorators import staff_member_required
 
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
@@ -204,38 +205,52 @@ from django.contrib.admin.views.decorators import staff_member_required # Add th
 from django.db.models import Count, Q
 import json
 
-@staff_member_required # ✅ SECURE: Only allows logged-in admin/staff users
+@staff_member_required  # ✅ SECURE: Only logged-in admin/staff can view this
 def intelligence_briefing_dashboard(request):
-    # 1. High-Level Stats
-    total_reports = Report.objects.count()
-    critical_reports = Report.objects.filter(ai_urgency_level='CRITICAL').count()
-    pending_verifications = FieldVerification.objects.filter(status='PENDING').count()
+    # 1. Get the latest AI summary
+    latest_summary = IntelligenceSummary.objects.first()
     
-    # 2. Reports by LGA (Top 5 Hotspots)
-    lga_stats = Report.objects.values('lga__name').annotate(
-        count=Count('id')
-    ).order_by('-count')[:5]
+    # 2. Get recent unacknowledged alerts
+    recent_alerts = PatternAlert.objects.filter(acknowledged=False).order_by('-detected_at')[:5]
     
-    lga_labels = [stat['lga__name'] or 'Unknown' for stat in lga_stats]
-    lga_counts = [stat['count'] for stat in lga_stats]
+    # 3. Get history for the 7-day trend chart
+    summaries_history = IntelligenceSummary.objects.order_by('-generated_at')[:7]
     
-    # 3. Reports by Status (for Pie Chart)
-    status_stats = Report.objects.values('status').annotate(count=Count('id'))
-    status_labels = [stat['status'] for stat in status_stats]
-    status_counts = [stat['count'] for stat in status_stats]
+    chart_labels = []
+    chart_volumes = []
+    chart_critical = []
     
-    # 4. Recent Activity (Last 5 Reports)
-    recent_reports = Report.objects.select_related('lga').order_by('-submitted_at')[:5]
-    
+    # Reverse to show oldest to newest on the chart
+    for summary in reversed(summaries_history):
+        chart_labels.append(summary.generated_at.strftime('%b %d'))
+        stats = summary.statistics or {}
+        chart_volumes.append(stats.get('total_reports', 0))
+        chart_critical.append(stats.get('critical_incidents', 0))
+        
+    # 4. Extract stats safely (with fallback to real-time DB counts if AI hasn't run yet)
+    if latest_summary and latest_summary.statistics:
+        stats = latest_summary.statistics
+        total_reports = stats.get('total_reports', 0)
+        critical_incidents = stats.get('critical_incidents', 0)
+        hotspots_identified = stats.get('hotspots_identified', 0)
+        trend = stats.get('trend', 'STABLE')
+    else:
+        # Fallback: Calculate real-time if no AI summary exists yet
+        total_reports = Report.objects.count()
+        critical_incidents = Report.objects.filter(ai_urgency_level='CRITICAL').count()
+        hotspots_identified = 0
+        trend = 'STABLE'
+
     context = {
-        'total_reports': total_reports,
-        'critical_reports': critical_reports,
-        'pending_verifications': pending_verifications,
-        'lga_labels': json.dumps(lga_labels),
-        'lga_counts': json.dumps(lga_counts),
-        'status_labels': json.dumps(status_labels),
-        'status_counts': json.dumps(status_counts),
-        'recent_reports': recent_reports,
+        'latest_summary': latest_summary, 
+        'recent_alerts': recent_alerts,
+        'chart_labels': chart_labels, 
+        'chart_volumes': chart_volumes, 
+        'chart_critical': chart_critical,
+        'total_reports': total_reports, 
+        'critical_incidents': critical_incidents,
+        'hotspots_identified': hotspots_identified, 
+        'trend': trend,
     }
     
     return render(request, 'intelligence_dashboard.html', context)

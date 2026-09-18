@@ -1,17 +1,22 @@
-"""
-Django settings for tarabaintel project.
-"""
-from pathlib import Path
 import os
+from pathlib import Path
 import dj_database_url
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0'
+# ✅ SECURE: Read from Environment Variables, fallback to local for testing
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-local-only')
 
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+# ✅ SECURE: Turn off Debug in Production
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ['true', '1', 'yes']
+
+# ✅ SECURE: Only allow your Render domain and localhost
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+if 'tarabaintel-ai.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('tarabaintel-ai.onrender.com')
+
+# ... [Keep your INSTALLED_APPS and MIDDLEWARE exactly as they are] ...
 
 # Tell Django where the PostGIS mapping libraries are located on Windows (Local only)
 if os.name == 'nt':
@@ -85,6 +90,9 @@ DATABASES = {
 
 if not is_sqlite:
     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+# Email Configuration
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '#MYGMAIL1@.kure2#')
 
 # Static files
 STATIC_URL = 'static/'

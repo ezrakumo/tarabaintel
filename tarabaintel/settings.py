@@ -5,18 +5,32 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ SECURE: Read from Environment Variables, fallback to local for testing
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-local-only')
+# ✅ 1. SECURE SECRET KEY: Read from Render Environment Variables
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0')
 
-# ✅ SECURE: Turn off Debug in Production
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ['true', '1', 'yes']
+# ✅ 2. SECURE DEBUG: Strictly controlled by Environment Variable
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
-# ✅ SECURE: Only allow your Render domain and localhost
+# ✅ 3. SECURE HOSTS: Only allow your Render domain and local testing
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 if 'tarabaintel-ai.onrender.com' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('tarabaintel-ai.onrender.com')
 
-# ... [Keep your INSTALLED_APPS and MIDDLEWARE exactly as they are] ...
+# ... [KEEP YOUR INSTALLED_APPS AND MIDDLEWARE EXACTLY AS THEY ARE] ...
+
+# ✅ 4. SECURE PROXY SETTINGS: Tell Django it's behind Render's HTTPS load balancer
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+# ✅ 5. SECURE COOKIES: Prevent session hijacking over HTTP
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# ... [KEEP YOUR DATABASE CONFIGURATION AS IS, it already uses os.environ.get('DATABASE_URL')] ...
+
+# ✅ 6. SECURE EMAIL: Read from Environment Variables
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '#MYGMAIL1@.kure2#')
 
 # Tell Django where the PostGIS mapping libraries are located on Windows (Local only)
 if os.name == 'nt':

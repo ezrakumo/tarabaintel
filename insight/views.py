@@ -322,14 +322,12 @@ class RedeemRewardView(APIView):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def predictive_hotspots(request):
-    """
-    API endpoint to retrieve predictive threat hotspots.
-    Returns geographic zones with high threat density.
-    """
     days = int(request.GET.get('days', 30))
     
     try:
-        predictor = HotspotPredictor(eps=0.05, min_samples=3)
+        # ✅ TUNED FOR HIGHER SENSITIVITY: 
+        # eps=0.1 (approx 10km radius), min_samples=2 (only needs 2 reports to form a cluster)
+        predictor = HotspotPredictor(eps=0.1, min_samples=2) 
         hotspots = predictor.generate_hotspots(days=days)
         
         return Response({

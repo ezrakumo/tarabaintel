@@ -137,6 +137,7 @@ ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(','
 for host in ['localhost', '127.0.0.1', 'tarabaintel-ai.onrender.com']:
     if host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(host)
+CORS_ALLOW_ALL_ORIGINS = True
 # ==========================================
 # JWT AUTHENTICATION SETTINGS
 # ==========================================

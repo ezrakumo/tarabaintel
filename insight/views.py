@@ -165,13 +165,38 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=True, methods=['post'])
+        @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         verification = self.get_object()
         serializer = VerificationCompleteSerializer(data=request.data)
+        
         if serializer.is_valid():
-            verification.complete_verification(serializer.validated_data['is_valid'], serializer.validated_data.get('notes', ''))
-            return Response({'message': 'Verification completed'})
+            agent_id = serializer.validated_data.get('agent_id')
+            is_valid = serializer.validated_data['is_valid']
+            notes = serializer.validated_data.get('notes', '')
+            
+            # Optional: Verify the agent is the one who claimed it
+            if agent_id and verification.assigned_agent and verification.assigned_agent.agent_id != agent_id:
+                return Response({'error': 'Only the assigned agent can complete this task'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # ✅ DIRECTLY UPDATE THE FIELDS (No custom model method needed)
+            verification.status = 'COMPLETED'
+            
+            # If your model has a 'notes' or 'verification_notes' field, update it here:
+            if hasattr(verification, 'notes'):
+                verification.notes = notes
+            if hasattr(verification, 'is_valid'):
+                verification.is_valid = is_valid
+                
+            verification.save()
+            
+            # ✅ UPDATE THE PARENT REPORT STATUS TOO
+            if verification.report:
+                verification.report.status = 'VERIFIED' if is_valid else 'INVALID'
+                verification.report.save()
+                
+            return Response({'message': 'Verification completed successfully'})
+            
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

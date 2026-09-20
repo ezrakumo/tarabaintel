@@ -1,35 +1,54 @@
 from django.contrib import admin
 from django.urls import path, include
-from insight.views import trigger_weekly_forecast
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+from rest_framework.routers import DefaultRouter
 
-# ✅ EXPLICITLY IMPORT ALL THE VIEWS WE NEED
+from accounts.views import RegisterView, ProfileView
 from insight.views import (
     intelligence_briefing_dashboard,
+    ReportViewSet,
+    FieldVerificationViewSet,
     test_ai_engine,
-    rewards_dashboard_page,
     rewards_dashboard_api,
+    trigger_weekly_forecast,
     predictive_hotspots,
-    debug_rewards
+    debug_rewards,
+    RedeemRewardView
 )
+
+# ✅ 1. SETUP THE ROUTER FOR VIEWSETS
+# This automatically generates /api/reports/ and /api/field-verifications/ 
+# INCLUDING all custom @action endpoints like /claim/ and /complete/
+router = DefaultRouter()
+router.register(r'reports', ReportViewSet, basename='report')
+router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # ✅ 2. AUTH ROUTES
+    path('api/auth/register/', RegisterView.as_view(), name='register'),
+    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/profile/', ProfileView.as_view(), name='profile'),
+    
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # Include any app-specific URL configurations (like insight.urls if it exists)
-    path('api/', include('insight.urls')), 
+    # ✅ 3. ROUTER URLS (Must come before generic includes)
+    path('api/', include(router.urls)),
     
-    # ✅ DIRECT VIEW ROUTES (No 'views.' prefix needed because we imported them directly above)
-    path('command-dashboard/', intelligence_briefing_dashboard, name='command-dashboard'),
-    path('api/test-ai/', test_ai_engine, name='test-ai'),
-    path('rewards/dashboard/web/', rewards_dashboard_page, name='rewards-dashboard-web'),
-    
-    # ✅ THE FIX: This is the exact endpoint your Flutter app is calling
+    # ✅ 4. OTHER SPECIFIC API ENDPOINTS
+    path('api/rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
     path('api/rewards/dashboard/', rewards_dashboard_api, name='rewards-dashboard-api'),
-    
+    path('api/cron/weekly-forecast/', trigger_weekly_forecast, name='weekly-forecast-cron'),
     path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
     path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
-    path('api/cron/weekly-forecast/', trigger_weekly_forecast, name='weekly-forecast-cron'),
+    path('api/test-ai/', test_ai_engine, name='test-ai'),
+    
+    # ✅ 5. DASHBOARD URL
+    path('', intelligence_briefing_dashboard, name='dashboard'),
 ]

@@ -249,20 +249,37 @@ def rewards_dashboard_page(request):
 @permission_classes([IsAuthenticated])
 def rewards_dashboard_api(request):
     try:
-        profile = UserProfile.objects.get(user=request.user)
+        # ✅ FIX: Use filter().first() to prevent MultipleObjectsReturned crashes
+        profile = UserProfile.objects.filter(user=request.user).first()
+        
+        # ✅ Auto-create profile if the user doesn't have one yet
+        if not profile:
+            profile = UserProfile.objects.create(user=request.user)
+
+        # Fetch rewards the user can afford
         available_rewards = RewardCatalog.objects.filter(
-            is_active=True, points_required__lte=profile.total_points
+            is_active=True, 
+            points_required__lte=profile.total_points
         ).values('id', 'title', 'points_required')
         
         return Response({
-            'status': 'success', 'user_tier': profile.tier,
+            'status': 'success', 
+            'user_tier': profile.tier,
             'total_points': profile.total_points,
             'available_rewards': list(available_rewards)
         })
-    except UserProfile.DoesNotExist:
-        return Response({'status': 'error', 'message': 'Profile not found'}, status=404)
+        
     except Exception as e:
-        return Response({'status': 'error', 'message': str(e)}, status=500)
+        # ✅ CATCH ALL: Prevents the ugly 500 HTML page and logs the exact error
+        import traceback
+        error_msg = str(e)
+        print(f"❌ DASHBOARD API CRASH: {error_msg}")
+        print(traceback.format_exc()) # Prints the exact line that failed to Render logs
+        
+        return Response({
+            'status': 'error', 
+            'message': 'Server error processing dashboard. Check logs.'
+        }, status=500)
 
 
 class RedeemRewardView(APIView):

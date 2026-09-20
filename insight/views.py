@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import requests
+import traceback
 from django.utils import timezone
 from django.shortcuts import render
 from django.db.models import Count, Q
@@ -135,10 +136,6 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
     queryset = FieldVerification.objects.all().order_by('-assigned_at')
     serializer_class = FieldVerificationSerializer
     
-    class FieldVerificationViewSet(viewsets.ModelViewSet):
-    queryset = FieldVerification.objects.all().order_by('-assigned_at')
-    serializer_class = FieldVerificationSerializer
-    
     @action(detail=True, methods=['post'])
     def claim(self, request, pk=None):
         verification = self.get_object()
@@ -193,6 +190,7 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Verification completed successfully'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @staff_member_required
 def intelligence_briefing_dashboard(request):
     latest_summary = IntelligenceSummary.objects.first()
@@ -242,14 +240,10 @@ def rewards_dashboard_page(request):
 @permission_classes([IsAuthenticated])
 def rewards_dashboard_api(request):
     try:
-        # ✅ FIX: Use filter().first() to prevent MultipleObjectsReturned crashes
         profile = UserProfile.objects.filter(user=request.user).first()
-        
-        # ✅ Auto-create profile if the user doesn't have one yet
         if not profile:
             profile = UserProfile.objects.create(user=request.user)
 
-        # Fetch rewards the user can afford
         available_rewards = RewardCatalog.objects.filter(
             is_active=True, 
             points_required__lte=profile.total_points
@@ -261,18 +255,10 @@ def rewards_dashboard_api(request):
             'total_points': profile.total_points,
             'available_rewards': list(available_rewards)
         })
-        
     except Exception as e:
-        # ✅ CATCH ALL: Prevents the ugly 500 HTML page and logs the exact error
-        import traceback
-        error_msg = str(e)
-        print(f"❌ DASHBOARD API CRASH: {error_msg}")
-        print(traceback.format_exc()) # Prints the exact line that failed to Render logs
-        
-        return Response({
-            'status': 'error', 
-            'message': 'Server error processing dashboard. Check logs.'
-        }, status=500)
+        print(f"❌ DASHBOARD API CRASH: {e}")
+        print(traceback.format_exc())
+        return Response({'status': 'error', 'message': 'Server error processing dashboard.'}, status=500)
 
 
 class RedeemRewardView(APIView):

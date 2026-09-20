@@ -151,7 +151,18 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
                 verification.report.save()
                 return Response({'message': f'Claimed by {agent.agent_id}'})
             except FieldAgent.DoesNotExist:
-                return Response({'error': 'Invalid agent'}, status=status.HTTP_404_NOT_FOUND)
+                # ✅ DEBUG: Tell Flutter exactly what is in the database!
+                all_agents = list(FieldAgent.objects.values_list('agent_id', flat=True))
+                active_agents = list(FieldAgent.objects.filter(is_active=True).values_list('agent_id', flat=True))
+                
+                return Response({
+                    'error': 'Invalid agent',
+                    'debug_info': {
+                        'you_sent': agent_id,
+                        'all_agents_in_db': all_agents,
+                        'active_agents_in_db': active_agents
+                    }
+                }, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])

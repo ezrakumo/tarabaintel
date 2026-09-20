@@ -19,9 +19,7 @@ from insight.views import (
     RedeemRewardView
 )
 
-# ✅ 1. SETUP THE ROUTER FOR VIEWSETS
-# This automatically generates /api/reports/ and /api/field-verifications/ 
-# INCLUDING all custom @action endpoints like /claim/ and /complete/
+# ✅ 1. SETUP THE ROUTER
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
@@ -38,7 +36,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # ✅ 3. ROUTER URLS (Must come before generic includes)
+    # ✅ 3. ROUTER URLS (Generates /api/field-verifications/ and /claim/)
     path('api/', include(router.urls)),
     
     # ✅ 4. OTHER SPECIFIC API ENDPOINTS

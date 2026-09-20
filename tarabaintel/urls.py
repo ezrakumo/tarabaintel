@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import HttpResponse
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -20,6 +21,7 @@ from insight.views import (
 )
 
 # ✅ 1. SETUP THE ROUTER
+# This is the ONLY router that matters now.
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
@@ -36,7 +38,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # ✅ 3. ROUTER URLS (Generates /api/field-verifications/ and /claim/)
+    # ✅ 3. ROUTER URLS (Generates /api/field-verifications/ AND /claim/)
     path('api/', include(router.urls)),
     
     # ✅ 4. OTHER SPECIFIC API ENDPOINTS
@@ -49,4 +51,7 @@ urlpatterns = [
     
     # ✅ 5. DASHBOARD URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
+    
+    # ✅ 6. ROUTING TEST ENDPOINT (To prove the router is working)
+    path('api/test-routing/', lambda request: HttpResponse("Router is working perfectly!"), name='test-routing'),
 ]

@@ -135,6 +135,10 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
     queryset = FieldVerification.objects.all().order_by('-assigned_at')
     serializer_class = FieldVerificationSerializer
     
+    class FieldVerificationViewSet(viewsets.ModelViewSet):
+    queryset = FieldVerification.objects.all().order_by('-assigned_at')
+    serializer_class = FieldVerificationSerializer
+    
     @action(detail=True, methods=['post'])
     def claim(self, request, pk=None):
         verification = self.get_object()
@@ -151,10 +155,8 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
                 verification.report.save()
                 return Response({'message': f'Claimed by {agent.agent_id}'})
             except FieldAgent.DoesNotExist:
-                # ✅ DEBUG: Tell Flutter exactly what is in the database!
                 all_agents = list(FieldAgent.objects.values_list('agent_id', flat=True))
                 active_agents = list(FieldAgent.objects.filter(is_active=True).values_list('agent_id', flat=True))
-                
                 return Response({
                     'error': 'Invalid agent',
                     'debug_info': {
@@ -165,40 +167,31 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-        @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         verification = self.get_object()
         serializer = VerificationCompleteSerializer(data=request.data)
-        
         if serializer.is_valid():
             agent_id = serializer.validated_data.get('agent_id')
             is_valid = serializer.validated_data['is_valid']
             notes = serializer.validated_data.get('notes', '')
             
-            # Optional: Verify the agent is the one who claimed it
             if agent_id and verification.assigned_agent and verification.assigned_agent.agent_id != agent_id:
                 return Response({'error': 'Only the assigned agent can complete this task'}, status=status.HTTP_403_FORBIDDEN)
             
-            # ✅ DIRECTLY UPDATE THE FIELDS (No custom model method needed)
             verification.status = 'COMPLETED'
-            
-            # If your model has a 'notes' or 'verification_notes' field, update it here:
             if hasattr(verification, 'notes'):
                 verification.notes = notes
             if hasattr(verification, 'is_valid'):
                 verification.is_valid = is_valid
-                
             verification.save()
             
-            # ✅ UPDATE THE PARENT REPORT STATUS TOO
             if verification.report:
                 verification.report.status = 'VERIFIED' if is_valid else 'INVALID'
                 verification.report.save()
                 
             return Response({'message': 'Verification completed successfully'})
-            
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @staff_member_required
 def intelligence_briefing_dashboard(request):

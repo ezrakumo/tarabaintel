@@ -90,13 +90,15 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-                # ✅ AI SERVICE CALL WITH GRACEFUL FALLBACK
+        # ✅ AI SERVICE CALL WITH GRACEFUL FALLBACK
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             response = requests.post(f"{ai_base_url}/analyze", json={
-                "report_id": str(report.id), "description": report.description,
-                "issue_category": report.issue_category, "image_base64": report.image_base64,
-            }, timeout=15) # Reduced timeout to prevent hanging
+                "report_id": str(report.id), 
+                "description": report.description,
+                "issue_category": report.issue_category, 
+                "image_base64": report.image_base64,
+            }, timeout=15)
             
             if response.status_code == 200:
                 ai_data = response.json()
@@ -105,14 +107,13 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.ai_sentiment = ai_data.get('sentiment', '')
                 report.ai_urgency_level = ai_data.get('urgency_level', 'MODERATE')
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
-                report.status = 'PROCESSED' # ✅ Move out of RAW
+                report.status = 'PROCESSED'
                 report.save()
             else:
                 raise Exception("AI returned non-200 status")
 
         except Exception as e:
             print(f"⚠️ AI Service unavailable ({e}). Applying default grading.")
-            # ✅ FALLBACK: Assign default values so the report isn't stuck in RAW
             report.ai_urgency_level = 'MODERATE'
             report.ai_confidence_score = 0.5
             report.status = 'PROCESSED'
@@ -124,7 +125,6 @@ class ReportViewSet(viewsets.ModelViewSet):
             print(f"✅ Rewards processed for report {report.id}")
         except Exception as grade_error:
             print(f"❌ Grading failed: {grade_error}")
-            # Fallback: Give 1 base point just for submitting
             try:
                 profile = UserProfile.objects.get(user=report.submitted_by)
                 profile.total_points += 1
@@ -135,8 +135,6 @@ class ReportViewSet(viewsets.ModelViewSet):
         # ✅ CREATE VERIFICATION TASK FOR HIGH URGENCY
         if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
             FieldVerification.objects.create(report=report, status='PENDING')
-        except Exception as e:
-            print(f"❌ AI Service unavailable: {e}")
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):

@@ -255,30 +255,66 @@ def test_ai_engine(request):
 def rewards_dashboard_page(request):
     return render(request, 'rewards_dashboard.html')
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def rewards_dashboard_api(request):
     try:
-        profile = UserProfile.objects.filter(user=request.user).first()
-        if not profile:
-            profile = UserProfile.objects.create(user=request.user)
-
+        profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'total_points': 0, 'lifetime_points': 0, 'tier': 'CITIZEN'}
+        )
+        
+        print(f"🔍 Dashboard API called for user: {request.user.username}")
+        print(f"📊 Profile total_points: {profile.total_points}")
+        
         available_rewards = RewardCatalog.objects.filter(
             is_active=True, 
             points_required__lte=profile.total_points
-        ).values('id', 'title', 'points_required')
+        )
         
+        recent_tx = RewardLedger.objects.filter(
+            user_profile=profile
+        ).order_by('-created_at')[:10]
+        
+        tier_order = ['CITIZEN', 'VOLUNTEER', 'INFORMANT', 'AGENT']
+        current_idx = tier_order.index(profile.tier) if profile.tier in tier_order else 0
+        next_tier = tier_order[current_idx + 1] if current_idx < len(tier_order) - 1 else None
+        points_to_next = (current_idx + 1) * 100 - profile.total_points if next_tier else 0
+        
+        # ✅ USE CAMELCASE TO MATCH FLUTTER MODEL
         return Response({
-            'status': 'success', 
-            'user_tier': profile.tier,
-            'total_points': profile.total_points,
-            'available_rewards': list(available_rewards)
+            'status': 'success',
+            'userTier': profile.tier,
+            'totalPoints': profile.total_points,
+            'lifetimePoints': profile.lifetime_points,
+            'affordableRewards': [
+                {
+                    'id': r.id,
+                    'title': r.title,
+                    'description': r.description or '',
+                    'pointsRequired': r.points_required,
+                }
+                for r in available_rewards
+            ],
+            'recentTransactions': [
+                {
+                    'type': tx.transaction_type,
+                    'points': tx.points,
+                    'description': tx.description,
+                    'date': tx.created_at.isoformat() if tx.created_at else None,
+                }
+                for tx in recent_tx
+            ],
+            'nextTier': next_tier,
+            'pointsToNextTier': max(0, points_to_next),
         })
+        
     except Exception as e:
-        print(f"❌ DASHBOARD API CRASH: {e}")
+        import traceback
+        print(f"❌ DASHBOARD API ERROR: {e}")
         print(traceback.format_exc())
-        return Response({'status': 'error', 'message': 'Server error processing dashboard.'}, status=500)
+        return Response({'status': 'error', 'message': str(e)}, status=500)
+
 
 
 class RedeemRewardView(APIView):

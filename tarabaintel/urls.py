@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from insight.views import trigger_weekly_forecast
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # ✅ EXPLICITLY IMPORT ALL THE VIEWS WE NEED
 from insight.views import (
@@ -14,6 +15,8 @@ from insight.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Include any app-specific URL configurations (like insight.urls if it exists)
     path('api/', include('insight.urls')), 

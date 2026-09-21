@@ -1,10 +1,9 @@
 from django.contrib import admin, messages
-from django.utils import timezone
 from .models import Report, FieldVerification, UserProfile, RewardCatalog, RewardLedger, IntelligenceSummary
 from .services.intelligence_cycle import IntelligenceCycleEngine
 
 # ✅ CUSTOM ADMIN ACTION FOR ONE-CLICK SITREP
-@admin.action(description='🚨 Generate and Email Daily SITREP Now')
+@admin.action(description='🚨 Generate Daily SITREP Now')
 def generate_and_email_sitrep(modeladmin, request, queryset):
     try:
         engine = IntelligenceCycleEngine()
@@ -22,18 +21,18 @@ def generate_and_email_sitrep(modeladmin, request, queryset):
             level=messages.ERROR
         )
 
-# ✅ REPORT ADMIN (With the new action attached)
+# ✅ REPORT ADMIN
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
     list_display = ('id', 'submitted_by', 'issue_category', 'ai_urgency_level', 'status', 'submitted_at')
     list_filter = ('status', 'ai_urgency_level', 'issue_category')
     search_fields = ('description', 'submitted_by__username')
-    actions = [generate_and_email_sitrep] # ✅ Action is here!
+    actions = [generate_and_email_sitrep]
 
-# ✅ FIELD VERIFICATION ADMIN
+# ✅ FIELD VERIFICATION ADMIN (Simplified to safe fields)
 @admin.register(FieldVerification)
 class FieldVerificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'report', 'assigned_agent', 'status', 'created_at')
+    list_display = ('id', 'report', 'status', 'is_valid')
     list_filter = ('status', 'is_valid')
 
 # ✅ USER PROFILE ADMIN
@@ -54,10 +53,8 @@ class RewardLedgerAdmin(admin.ModelAdmin):
     list_display = ('user_profile', 'transaction_type', 'points', 'created_at')
     list_filter = ('transaction_type',)
 
-# ✅ INTELLIGENCE SUMMARY ADMIN (REGISTERED ONLY ONCE!)
+# ✅ INTELLIGENCE SUMMARY ADMIN (Simplified to safe fields)
 @admin.register(IntelligenceSummary)
 class IntelligenceSummaryAdmin(admin.ModelAdmin):
-    list_display = ('title', 'summary_type', 'generated_at')
-    list_filter = ('summary_type',)
-    # We don't need the action here since it's on the Report admin, 
-    # but you can add it to actions = [generate_and_email_sitrep] if you prefer.
+    list_display = ('id', 'title', 'generated_at')
+    # Removed list_filter to avoid field name mismatches

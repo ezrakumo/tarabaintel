@@ -514,3 +514,118 @@ def stakeholder_dashboard(request):
         ],
         'generated_at': timezone.now().isoformat()
     })
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from .models import UserProfile, FieldAgent, AgentRegistrationRequest
+from .serializers import AgentRegistrationSerializer
+
+User = get_user_model()
+
+class AgentRegistrationRequestView(APIView):
+    """
+    Allows prospective agents to request registration
+    """
+    permission_classes = [AllowAny]  # Public endpoint for registration
+    
+    def post(self, request):
+        serializer = AgentRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            # Check if phone already exists
+            if User.objects.filter(username=serializer.validated_data['phone_number']).exists():
+                return Response(
+                    {'error': 'Phone number already registered'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create registration request
+            registration = serializer.save()
+            
+            return Response({
+                'status': 'success',
+                'message': 'Registration request submitted. Awaiting admin approval.',
+                'request_id': registration.id
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AgentApprovalView(APIView):
+    """
+    Admin endpoint to approve/reject agent registrations
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        registration_id = request.data.get('registration_id')
+        action = request.data.get('action')  # 'approve' or 'reject'
+        rejection_reason = request.data.get('rejection_reason', '')
+        
+        try:
+            registration = AgentRegistrationRequest.objects.get(id=registration_id)
+        except AgentRegistrationRequest.DoesNotExist:
+            return Response(
+                {'error': 'Registration not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if action == 'approve':
+            # Create user account
+            user = User.objects.create_user(
+                username=registration.phone_number,
+                password=registration.phone_number,  # Temporary password
+                first_name=registration.full_name,
+            )
+            
+            # Create user profile
+            profile = UserProfile.objects.create(
+                user=user,
+                tier='CITIZEN',
+                total_points=0,
+                lifetime_points=0
+            )
+            
+            # Create field agent record with unique AGENT_ID
+            agent_count = FieldAgent.objects.count()
+            agent_id = f"AGENT_{agent_count + 1:03d}"  # AGENT_001, AGENT_002, etc.
+            
+            FieldAgent.objects.create(
+                user=user,
+                agent_id=agent_id,
+                lga=registration.lga,
+                is_active=True,
+                phone_number=registration.phone_number
+            )
+            
+            # Mark registration as approved
+            registration.status = 'APPROVED'
+            registration.approved_by = request.user
+            registration.save()
+            
+            # TODO: Send SMS/Email with credentials
+            # send_welcome_sms(registration.phone_number, agent_id, registration.phone_number)
+            
+            return Response({
+                'status': 'success',
+                'message': f'Agent {agent_id} approved successfully',
+                'agent_id': agent_id,
+                'username': registration.phone_number,
+                'temporary_password': registration.phone_number
+            })
+        
+        elif action == 'reject':
+            registration.status = 'REJECTED'
+            registration.rejection_reason = rejection_reason
+            registration.save()
+            
+            return Response({
+                'status': 'rejected',
+                'message': 'Registration request rejected'
+            })
+        
+        return Response(
+            {'error': 'Invalid action. Use "approve" or "reject"'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )

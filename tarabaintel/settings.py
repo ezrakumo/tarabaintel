@@ -25,6 +25,7 @@ USE_X_FORWARDED_HOST = True
 # ✅ 5. SECURE COOKIES: Prevent session hijacking over HTTP
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+ALLOWED_HOSTS = ['tarabaintel-ai.onrender.com', 'localhost', '127.0.0.1', '*']
 
 # ... [KEEP YOUR DATABASE CONFIGURATION AS IS, it already uses os.environ.get('DATABASE_URL')] ...
 

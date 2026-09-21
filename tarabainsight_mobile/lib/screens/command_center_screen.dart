@@ -3,6 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'pending_verifications_screen.dart';
+import 'analytics_screen.dart';
 
 class CommandCenterScreen extends StatefulWidget {
   const CommandCenterScreen({Key? key}) : super(key: key);
@@ -15,19 +19,30 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   late WebSocketChannel channel;
   final List<Map<String, dynamic>> _threats = [];
   final MapController _mapController = MapController();
+  List<Hotspot> _hotspots = [];
 
   @override
   void initState() {
     super.initState();
     _connectWebSocket();
+    _fetchPredictiveHotspots();
   }
 
-  void _connectWebSocket() {
-    print("🔌 Attempting to connect to WebSocket...");
+  Future<void> _connectWebSocket() async {
+    print("🔌 Attempting to connect to secure WebSocket...");
     
-    channel = WebSocketChannel.connect(
-      Uri.parse('wss://tarabaintel-ai.onrender.com/ws/intelligence/'),
-    );
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token'); 
+    
+    if (token == null || token.isEmpty) {
+      print(" SECURITY BLOCK: No JWT token found. User must log in.");
+      return;
+    }
+
+    String wsUrl = 'wss://tarabaintel-ai.onrender.com/ws/intelligence/?token=$token';
+    print("🔑 Token attached. Connecting to: $wsUrl");
+
+    channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
     channel.stream.listen(
       (message) {
@@ -40,7 +55,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text("🚨 NEW THREAT: ${data['report']['category']}"),
+                content: Text(" NEW THREAT: ${data['report']['category']}"),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -48,7 +63,6 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           }
         } catch (e) {
           print("❌ Error parsing WebSocket message: $e");
-          print("Raw message received: $message");
         }
       },
       onError: (error) {
@@ -60,6 +74,73 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     );
   }
 
+  Future<void> _fetchPredictiveHotspots() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token'); 
+      
+      if (token == null || token.isEmpty) {
+        print("⚠️ No token found for hotspot API request.");
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('https://tarabaintel-ai.onrender.com/api/predictive-hotspots/?days=30'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print(" Predictive AI found ${data['hotspot_count']} hotspots");
+        
+        setState(() {
+          _hotspots = (data['hotspots'] as List).map((h) => Hotspot.fromJson(h)).toList();
+        });
+      } else {
+        print("⚠️ Failed to fetch hotspots: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❌ Error fetching hotspots: $e");
+    }
+  }
+
+      List<CircleMarker> _buildHotspotCircles() {
+    return _hotspots.map((hotspot) {
+      Color circleColor;
+      Color borderColor;
+      
+      switch (hotspot.threatLevel) {
+        case 'CRITICAL':
+          circleColor = Colors.red.withOpacity(0.4);
+          borderColor = Colors.red;
+          break;
+        case 'HIGH':
+          circleColor = Colors.orange.withOpacity(0.4);
+          borderColor = Colors.orange;
+          break;
+        default:
+          circleColor = Colors.yellow.withOpacity(0.4);
+          borderColor = Colors.yellow;
+      }
+      
+      // ✅ DYNAMIC RADIUS SCALING
+      // Convert km to pixels: Base scale of 100 pixels per km
+      // Minimum 50px, Maximum 300px for visibility
+      double radiusInPixels = (hotspot.radiusKm * 100).clamp(50.0, 300.0);
+      
+      return CircleMarker(
+        point: LatLng(hotspot.centerLat, hotspot.centerLon),
+        radius: radiusInPixels,
+        color: circleColor,
+        borderColor: borderColor,
+        borderStrokeWidth: 3,
+      );
+    }).toList();
+  }
+  
   @override
   void dispose() {
     channel.sink.close();
@@ -81,8 +162,30 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
+          // ✅ NEW: Pending Verifications Button
+          IconButton(
+            icon: const Icon(Icons.task_alt, color: Colors.amber),
+            tooltip: 'Pending Verifications',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PendingVerificationsScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.analytics, color: Colors.greenAccent),
+            tooltip: 'Performance Analytics',
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => AnalyticsScreen()),
+              );
+            },
+        ),
+          // Existing LIVE Indicator
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.only(right: 16.0),
             child: Row(
               children: [
                 Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
@@ -95,11 +198,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       ),
       body: Stack(
         children: [
-          // 1. The Map
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: LatLng(8.8833, 11.3667), // Center on Jalingo
+              initialCenter: LatLng(8.8833, 11.3667),
               initialZoom: 8,
             ),
             children: [
@@ -124,11 +226,11 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   );
                 }).toList(),
               ),
+              CircleLayer(circles: _buildHotspotCircles()),
             ],
           ),
           
-          // 2. The Threat Feed Overlay
-          Positioned(
+           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
@@ -180,6 +282,42 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: Colors.white))),
         ],
       ),
+    );
+  }
+}
+
+// ✅ HOTSPOT MODEL CLASS (FIXED FOR UUID STRINGS)
+class Hotspot {
+  final int clusterId;
+  final double centerLat;
+  final double centerLon;
+  final double radiusKm;
+  final int reportCount;
+  final String threatLevel;
+  final List<String> reportIds; // ✅ CHANGED FROM List<int> TO List<String>
+  
+  Hotspot({
+    required this.clusterId,
+    required this.centerLat,
+    required this.centerLon,
+    required this.radiusKm,
+    required this.reportCount,
+    required this.threatLevel,
+    required this.reportIds,
+  });
+  
+  factory Hotspot.fromJson(Map<String, dynamic> json) {
+    return Hotspot(
+      clusterId: json['cluster_id'] ?? 0,
+      centerLat: (json['center_lat'] ?? 0.0).toDouble(),
+      centerLon: (json['center_lon'] ?? 0.0).toDouble(),
+      radiusKm: (json['radius_km'] ?? 0.0).toDouble(),
+      reportCount: json['report_count'] ?? 0,
+      threatLevel: json['threat_level'] ?? 'MODERATE',
+      // ✅ SAFELY CONVERT TO LIST OF STRINGS (UUIDs)
+      reportIds: (json['report_ids'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ?? [],
     );
   }
 }

@@ -31,14 +31,20 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.5
   image_picker: ^1.0.7          # ✅ Only listed ONCE
   flutter_map: ^6.1.0           # ✅ For the Command Center Map
   latlong2: ^0.9.1              # ✅ For Map coordinates
   web_socket_channel: ^2.4.0    # ✅ For Real-Time WebSocket connection
+  # ... your existing dependencies ...
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  uuid: ^4.2.1
+  flutter_secure_storage: ^9.0.0
+  fl_chart: ^0.68.0
   
  # ... your existing dependencies ...
-  connectivity_plus: ^5.0.2
+  connectivity_plus: ^7.0.0
   path_provider: ^2.1.2
 
   # The following adds the Cupertino Icons font to your application.

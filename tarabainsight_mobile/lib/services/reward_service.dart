@@ -1,79 +1,79 @@
 ﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ UNIFIED STORAGE
 import '../models/reward_models.dart';
 
 class RewardService {
-  // YOUR LIVE RENDER URL
   static const String baseUrl = 'https://tarabaintel-ai.onrender.com/api';
 
+  // ✅ GET TOKEN (Matches main.dart and login_screen.dart)
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    
+    if (token == null) {
+      print("⚠️ No token found, cannot fetch dashboard");
+    } else {
+      print("✅ Token retrieved successfully from SharedPreferences!");
+    }
+    return token;
+  }
+
+  // ✅ SAVE TOKEN
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('jwt_token', token);
+    print("✅ Token saved successfully!");
   }
 
-  static Future<String?> getToken() async {
+  // ✅ LOGOUT
+  static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('jwt_token');
+    await prefs.remove('jwt_token');
+    print("🚪 Token deleted (logged out)");
   }
 
-  static Future<bool> login(String username, String password) async {
-    // Try up to 3 times (for Render spin-up delays)
-    for (int attempt = 0; attempt < 3; attempt++) {
-      try {
-        final response = await http.post(
-          Uri.parse("$baseUrl/token/"),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'username': username, 'password': password}),
-        ).timeout(const Duration(seconds: 20));
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          await saveToken(data['access']);
-          return true;
-        }
-        return false;
-      } catch (e) {
-        print("Login attempt ${attempt + 1} failed: $e");
-        if (attempt < 2) {
-          await Future.delayed(const Duration(seconds: 3));
-        }
-      }
-    }
-    return false;
-  }
-
+  // ✅ FETCH DASHBOARD
   static Future<DashboardResponse?> getDashboard() async {
     final token = await getToken();
     if (token == null) return null;
 
     try {
+      print("🔍 Fetching dashboard from: $baseUrl/rewards/dashboard/");
+      
       final response = await http.get(
-        Uri.parse("$baseUrl/rewards/dashboard/"),
+        Uri.parse('$baseUrl/rewards/dashboard/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 45)); // ✅ 45 seconds for Render cold starts
+      ).timeout(const Duration(seconds: 45));
+
+      print("📡 Dashboard API Status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return DashboardResponse.fromJson(data);
+        final dashboard = DashboardResponse.fromJson(data);
+        print("✅ Dashboard parsed: ${dashboard.totalPoints} points, ${dashboard.userTier} tier");
+        return dashboard;
       } else {
-        print("Failed to load dashboard: ${response.statusCode}");
+        print("❌ Failed to load dashboard: ${response.statusCode}");
         return null;
       }
     } catch (e) {
-      print("Dashboard Error: $e");
+      print("❌ Dashboard Error: $e");
       return null;
     }
   }
 
+  // ✅ REDEEM REWARD
   static Future<Map<String, dynamic>?> redeemReward(int rewardId) async {
     final token = await getToken();
     if (token == null) return null;
 
     try {
+      print("🎯 Redeeming reward ID: $rewardId");
+      
       final response = await http.post(
         Uri.parse('$baseUrl/rewards/redeem/'),
         headers: {
@@ -81,17 +81,16 @@ class RewardService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'reward_id': rewardId}),
-      ).timeout(const Duration(seconds: 45));
+      );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['error'] ?? 'Redemption failed');
+        throw Exception('Failed to redeem reward: ${response.body}');
       }
     } catch (e) {
-      print("Redemption Error: $e");
-      throw Exception(e.toString());
+      print("❌ Redeem Error: $e");
+      rethrow;
     }
   }
-} // ✅ THIS IS THE ONLY CLOSING BRACE FOR THE CLASS
+}

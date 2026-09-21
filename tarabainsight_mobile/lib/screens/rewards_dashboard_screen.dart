@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/reward_models.dart';
 import '../services/reward_service.dart';
 import 'report_submission_screen.dart';
-import 'field_agent_dashboard_screen.dart'; // ✅ Imported perfectly
+import 'pending_verifications_screen.dart';
+import 'command_center_screen.dart';
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -25,10 +26,12 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
     setState(() => _isLoading = true);
     final dashboard = await RewardService.getDashboard();
 
-    setState(() {
-      _dashboard = dashboard;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _dashboard = dashboard;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _redeemReward(Reward reward) async {
@@ -65,11 +68,11 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         SnackBar(
           content: Text(result?['message'] ?? 'Redeemed successfully!'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
         ),
       );
       
-      _loadData(); 
+      _loadData(); // Refresh data to show updated points
       
     } catch (e) {
       if (!mounted) return;
@@ -102,7 +105,11 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
       );
     }
 
-    final profile = _dashboard!.profile;
+    // ✅ USE FLAT STRUCTURE (NO NESTED PROFILE)
+    final totalPoints = _dashboard!.totalPoints;
+    final userTier = _dashboard!.userTier;
+    final pointsToNext = _dashboard!.pointsToNextTier;
+    final nextTier = _dashboard!.nextTier;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E17),
@@ -111,34 +118,51 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
-          // 1. Refresh Button
+          // ✅ 1. RED SUBMIT REPORT ICON
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadData,
-          ),
-          // 2. Submit Report Button (Gold)
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: Color(0xFFEAB308)),
+            icon: const Icon(Icons.post_add, color: Colors.redAccent),
+            tooltip: 'Submit New Report',
             onPressed: () async {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ReportSubmissionScreen()),
               );
-              
-              if (result == true && mounted) {
-                _loadData(); 
+              if (result == true) {
+                _loadData();
               }
             },
           ),
-          // 3. Field Agent Dashboard Button (Green Shield) ✅
+
+          // ✅ 2. AMBER PENDING VERIFICATIONS ICON
           IconButton(
-            icon: const Icon(Icons.security, color: Colors.green),
-            tooltip: 'Field Agent Dashboard',
+            icon: const Icon(Icons.task_alt, color: Colors.amber),
+            tooltip: 'Pending Verifications',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FieldAgentDashboardScreen()),
+                MaterialPageRoute(builder: (context) => const PendingVerificationsScreen()),
               );
+            },
+          ),
+
+          // ✅ 3. BLUE COMMAND CENTER MAP ICON
+          IconButton(
+            icon: const Icon(Icons.map, color: Colors.blue),
+            tooltip: 'Command Center Map',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CommandCenterScreen()),
+              );
+            },
+          ),
+
+          // ✅ 4. WHITE REFRESH ICON
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Data',
+            onPressed: () {
+              _loadData(); 
             },
           ),
         ],
@@ -169,24 +193,26 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          profile.tier,
+                          userTier, // ✅ USE FLAT userTier
                           style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('${profile.totalPoints}', style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
+                  Text('$totalPoints', style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   LinearProgressIndicator(
-                    value: (profile.totalPoints / (profile.totalPoints + (_dashboard!.pointsToNextTier ?? 0))).toDouble().clamp(0.0, 1.0),
+                    value: pointsToNext > 0 
+                        ? (totalPoints / (totalPoints + pointsToNext)).clamp(0.0, 1.0)
+                        : 1.0,
                     backgroundColor: Colors.white24,
                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                     minHeight: 8,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_dashboard!.pointsToNextTier ?? 0} pts to ${_dashboard!.nextTier ?? 'MAX TIER'}',
+                    '$pointsToNext pts to ${nextTier ?? 'MAX TIER'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
@@ -225,7 +251,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                             children: [
                               Text(reward.title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
-                              Text(reward.description, style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              Text(reward.description ?? 'No description', style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                               const Spacer(),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

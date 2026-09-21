@@ -1,93 +1,140 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../services/reward_service.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'rewards_dashboard_screen.dart';
 
+
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController(text: 'ezrakumo1');
-  final _passwordController = TextEditingController(text: 'SUPAUSER1@.kure2');
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  String _errorMessage = '';
 
   Future<void> _handleLogin() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    setState(() => _isLoading = true);
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-    final success = await RewardService.login(
-      _usernameController.text,
-      _passwordController.text,
-    );
+    print("🔥 LOGIN BUTTON PRESSED!");
+    print("📦 Sending login request for: $username");
 
-    setState(() => _isLoading = false);
-
-    if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => RewardsDashboardScreen()),
+    try {
+      final response = await http.post(
+        Uri.parse('https://tarabaintel-ai.onrender.com/api/token/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
       );
-    } else {
-      setState(() => _errorMessage = 'Invalid credentials or network error.');
+
+      print(" Login API Status: ${response.statusCode}");
+      print("📡 Login API Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['access'] ?? data['token'];
+        
+        print("💾 Saving token via SharedPreferences...");
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwt_token', token);
+        print("✅ Token saved successfully!");
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RewardsDashboardScreen()),
+          );
+        }
+      } else {
+        print("❌ Login failed: ${response.body}");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Login failed: ${response.body}'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      print("💥 Login function crashed: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Network error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFF0A0E17),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.shield, size: 64, color: Colors.blue[900]),
-                  SizedBox(height: 16),
-                  Text('TarabaInsight', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue[900])),
-                  Text('Agent Portal', style: TextStyle(color: Colors.grey[600])),
-                  SizedBox(height: 32),
-                  TextField(
-                    controller: _usernameController,
-                    decoration: InputDecoration(labelText: 'Codename / Username', border: OutlineInputBorder()),
-                  ),
-                  SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
-                  ),
-                  if (_errorMessage.isNotEmpty) ...[
-                    SizedBox(height: 16),
-                    Text(_errorMessage, style: TextStyle(color: Colors.red)),
-                  ],
-                  SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[900],
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: _isLoading 
-                        ? CircularProgressIndicator(color: Colors.white) 
-                        : Text('AUTHENTICATE', style: TextStyle(fontSize: 16, letterSpacing: 1.2)),
-                    ),
-                  ),
-                ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.shield, size: 80, color: Color(0xFFEAB308)),
+              const SizedBox(height: 20),
+              const Text('TarabaInsight', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text('Secure Intelligence Platform', style: TextStyle(color: Colors.grey, fontSize: 16)),
+              const SizedBox(height: 40),
+              TextField(
+                controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade700)),
+                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
+                  filled: true,
+                  fillColor: const Color(0xFF1F2937),
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: const TextStyle(color: Colors.grey),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey.shade700)),
+                  focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
+                  filled: true,
+                  fillColor: const Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEAB308),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text('LOGIN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ),
       ),

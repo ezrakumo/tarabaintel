@@ -19,46 +19,30 @@ class LGA(models.Model):
         return self.name
 
 
-class Report(models.Model):
+class AgentRegistrationRequest(models.Model):
     STATUS_CHOICES = [
-        ('RAW', 'Raw'),
-        ('PENDING_VERIFICATION', 'Pending Verification'),
-        ('VERIFIED', 'Verified'),
+        ('PENDING', 'Pending Approval'),
+        ('APPROVED', 'Approved'),
         ('REJECTED', 'Rejected'),
     ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    submitted_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='submitted_reports',
-        help_text="The user who submitted this report"
-    )
-    description = models.TextField()
-    issue_category = models.CharField(max_length=100)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='RAW')
-    location = gis_models.PointField(srid=4326, null=True, blank=True)
-    lga = models.ForeignKey(LGA, on_delete=models.SET_NULL, null=True, blank=True)
-    image_base64 = models.TextField(null=True, blank=True)
+    
+    full_name = models.CharField(max_length=200)
+    phone_number = models.CharField(max_length=20, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    lga = models.CharField(max_length=100, blank=True, null=True)
+    reason_for_joining = models.TextField()
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     submitted_at = models.DateTimeField(auto_now_add=True)
-
-    # AI Analysis Fields
-    ai_suggested_category = models.CharField(max_length=100, blank=True, null=True)
-    ai_confidence_score = models.FloatField(default=0.0)
-    ai_sentiment = models.CharField(max_length=50, blank=True, null=True)
-    ai_urgency_level = models.CharField(max_length=50, blank=True, null=True)
-    ai_extracted_entities = models.JSONField(default=dict, blank=True)
-
-    # TarabaInsight 2.0 Fields
-    is_covert = models.BooleanField(default=False, help_text="Submitted via discreet/panic mode")
-    intel_quality_score = models.IntegerField(default=0, help_text="AI graded quality: 0 to 100")
-    points_awarded = models.IntegerField(default=0, help_text="Points granted for this specific report")
-    acknowledgment_sent = models.BooleanField(default=False, help_text="Has the user been notified of receipt?")
-
+    approved_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    
     class Meta:
         ordering = ['-submitted_at']
-
+    
     def __str__(self):
-        return f"Report {self.id} - {self.issue_category}"
+        return f"{self.full_name} - {self.phone_number} ({self.status})"
 
 
 class FieldAgent(models.Model):

@@ -387,3 +387,48 @@ def debug_rewards(request):
         "all_rewards": [{"title": r.title, "points": r.points_required, "tier_in_db": r.min_tier_required} for r in all_rewards],
         "filtered_rewards": [{"title": r.title, "points": r.points_required, "tier": r.min_tier_required} for r in filtered_rewards]
     })
+from django.db.models import Count
+from django.utils import timezone
+from datetime import timedelta
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def agent_performance_analytics(request):
+    """
+    Returns 7-day submission trend and category breakdown for the logged-in user.
+    """
+    try:
+        # 1. Calculate 7-Day Trend
+        today = timezone.now().date()
+        trend_data = []
+        for i in range(6, -1, -1):
+            day = today - timedelta(days=i)
+            count = Report.objects.filter(
+                submitted_at__date=day, 
+                submitted_by=request.user
+            ).count()
+            trend_data.append({'date': day.strftime('%b %d'), 'count': count})
+
+        # 2. Calculate Category Breakdown
+        categories = Report.objects.filter(
+            submitted_by=request.user
+        ).values('issue_category').annotate(total=Count('id')).order_by('-total')
+        
+        category_data = [
+            {'category': item['issue_category'] or 'Unknown', 'count': item['total']} 
+            for item in categories
+        ]
+
+        # 3. Aggregate Stats
+        total_reports = Report.objects.filter(submitted_by=request.user).count()
+        profile = UserProfile.objects.get(user=request.user)
+
+        return Response({
+            'status': 'success',
+            'total_reports': total_reports,
+            'total_points': profile.total_points,
+            'trend': trend_data,
+            'categories': category_data
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=500)

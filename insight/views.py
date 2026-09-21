@@ -40,6 +40,7 @@ from asgiref.sync import async_to_sync
 
 # ✅ Predictive AI Import
 from .services.hotspot_predictor import HotspotPredictor
+from .services.intelligence_cycle import IntelligenceCycleEngine
 
 
 class ReportViewSet(viewsets.ModelViewSet):
@@ -432,3 +433,84 @@ def agent_performance_analytics(request):
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def generate_intelligence_briefing(request):
+    """
+    PHASE 5: Generate finished intelligence product for stakeholders
+    """
+    report_type = request.GET.get('type', 'daily')  # daily, weekly, flash
+    engine = IntelligenceCycleEngine()
+    
+    if report_type == 'daily':
+        briefing = engine.generate_daily_sitrep()
+    elif report_type == 'patterns':
+        briefing = {
+            'report_type': 'PATTERN_ANALYSIS',
+            'generated_at': timezone.now().isoformat(),
+            'patterns': engine.detect_patterns(days=7)
+        }
+    else:
+        return Response(
+            {'error': 'Invalid report type'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    return Response(briefing)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def stakeholder_dashboard(request):
+    """
+    Executive dashboard for decision-makers
+    Shows real-time intelligence status
+    """
+    # Key Performance Indicators
+    total_reports_24h = Report.objects.filter(
+        submitted_at__gte=timezone.now() - timedelta(hours=24)
+    ).count()
+    
+    critical_active = Report.objects.filter(
+        ai_urgency_level='CRITICAL',
+        status__in=['RAW', 'PROCESSED']
+    ).count()
+    
+    verification_pending = FieldVerification.objects.filter(
+        status='PENDING'
+    ).count()
+    
+    # Active field agents
+    active_agents = FieldAgent.objects.filter(
+        is_active=True
+    ).count()
+    
+    # Top threats requiring attention
+    top_threats = Report.objects.filter(
+        ai_urgency_level__in=['CRITICAL', 'HIGH'],
+        status__in=['RAW', 'PROCESSED']
+    ).order_by('-submitted_at')[:5]
+    
+    return Response({
+        'status': 'success',
+        'kpis': {
+            'reports_24h': total_reports_24h,
+            'critical_active': critical_active,
+            'pending_verifications': verification_pending,
+            'active_agents': active_agents,
+        },
+        'top_threats': [
+            {
+                'id': r.id,
+                'category': r.issue_category,
+                'urgency': r.ai_urgency_level,
+                'location': r.lga.name if r.lga else 'Unknown',
+                'submitted': r.submitted_at.isoformat(),
+                'confidence': r.ai_confidence_score
+            }
+            for r in top_threats
+        ],
+        'generated_at': timezone.now().isoformat()
+    })

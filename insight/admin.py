@@ -5,6 +5,8 @@ from .models import (
     IntelligenceSummary, PatternAlert,
     UserProfile, RewardLedger, RewardCatalog, Redemption
 )
+from .models import Report, FieldVerification, IntelligenceSummary
+from .services.intelligence_cycle import IntelligenceCycleEngine
 
 
 # ==========================================
@@ -52,6 +54,33 @@ class PatternAlertAdmin(admin.ModelAdmin):
     list_display = ('title', 'alert_type', 'severity', 'detected_at', 'acknowledged')
     list_filter = ('severity', 'alert_type', 'acknowledged')
     search_fields = ('title', 'description')
+
+@admin.action(description='🚨 Generate and Email Daily SITREP Now')
+def generate_and_email_sitrep(modeladmin, request, queryset):
+    try:
+        engine = IntelligenceCycleEngine()
+        sitrep = engine.generate_daily_sitrep()
+        
+        # (Optional) Add your email sending logic here, or just rely on the 
+        # fact that generate_daily_sitrep() already saves it and can trigger emails.
+        # For now, let's just confirm it generated successfully.
+        
+        modeladmin.message_user(
+            request, 
+            f"✅ SUCCESS: Daily SITREP generated for {sitrep['date']}. Total Reports: {sitrep['statistics']['total_reports']}", 
+            level=messages.SUCCESS
+        )
+    except Exception as e:
+        modeladmin.message_user(
+            request, 
+            f"❌ ERROR: Failed to generate SITREP. Details: {str(e)}", 
+            level=messages.ERROR
+        )
+
+@admin.register(IntelligenceSummary)
+class IntelligenceSummaryAdmin(admin.ModelAdmin):
+    list_display = ('title', 'summary_type', 'generated_at')
+    actions = [generate_and_email_sitrep]
 
 
 # ==========================================

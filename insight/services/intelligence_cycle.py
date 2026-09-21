@@ -28,9 +28,10 @@ class IntelligenceCycleEngine:
         ).order_by('-count')[:3]
         
         # PHASE 4: ANALYSIS - Identify patterns
+        # ✅ FIXED: Use 'verified_at' instead of 'completed_at'
         verified_reports = FieldVerification.objects.filter(
             status='COMPLETED',
-            completed_at__date=yesterday
+            verified_at__date=yesterday
         )
         
         verification_rate = (

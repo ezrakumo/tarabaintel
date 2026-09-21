@@ -77,10 +77,6 @@ def generate_and_email_sitrep(modeladmin, request, queryset):
             level=messages.ERROR
         )
 
-@admin.register(IntelligenceSummary)
-class IntelligenceSummaryAdmin(admin.ModelAdmin):
-    list_display = ('title', 'summary_type', 'generated_at')
-    actions = [generate_and_email_sitrep]
 
 
 # ==========================================

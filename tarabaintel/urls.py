@@ -19,6 +19,11 @@ from insight.views import (
     RedeemRewardView,
     agent_performance_analytics  # ✅ ADDED THE MISSING IMPORT HERE!
 )
+from insight.views import (
+    # ... existing imports ...
+    generate_intelligence_briefing,
+    stakeholder_dashboard,
+)
 
 # ✅ 1. SETUP THE ROUTER
 router = DefaultRouter()
@@ -53,4 +58,7 @@ urlpatterns = [
     
     # ✅ 6. DASHBOARD URL
     path('', intelligence_briefing_dashboard, name='dashboard'),
+    # Intelligence Cycle Endpoints
+    path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
+    path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
 ]

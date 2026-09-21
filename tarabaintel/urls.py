@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -17,11 +16,11 @@ from insight.views import (
     trigger_weekly_forecast,
     predictive_hotspots,
     debug_rewards,
-    RedeemRewardView
+    RedeemRewardView,
+    agent_performance_analytics  # ✅ ADDED THE MISSING IMPORT HERE!
 )
 
 # ✅ 1. SETUP THE ROUTER
-# This is the ONLY router that matters now.
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
@@ -38,7 +37,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # ✅ 3. ROUTER URLS (Generates /api/field-verifications/ AND /claim/)
+    # ✅ 3. ROUTER URLS
     path('api/', include(router.urls)),
     
     # ✅ 4. OTHER SPECIFIC API ENDPOINTS
@@ -49,10 +48,9 @@ urlpatterns = [
     path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
     path('api/test-ai/', test_ai_engine, name='test-ai'),
     
-    # ✅ 5. DASHBOARD URL
-    path('', intelligence_briefing_dashboard, name='dashboard'),
-    
-    # ✅ 6. ROUTING TEST ENDPOINT (To prove the router is working)
-    path('api/test-routing/', lambda request: HttpResponse("Router is working perfectly!"), name='test-routing'),
+    # ✅ 5. ANALYTICS ENDPOINT (The new feature!)
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
+    
+    # ✅ 6. DASHBOARD URL
+    path('', intelligence_briefing_dashboard, name='dashboard'),
 ]

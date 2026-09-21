@@ -302,3 +302,28 @@ class Redemption(models.Model):
 
     def __str__(self):
         return f"{self.user_profile} redeemed {self.reward} ({self.status})"
+    # ✅ NEW: AGENT REGISTRATION REQUEST MODEL
+class AgentRegistrationRequest(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Approval'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    ]
+    
+    full_name = models.CharField(max_length=200)
+    phone_number = models.CharField(max_length=20, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    lga = models.CharField(max_length=100, blank=True) # Using CharField for safety
+    reason_for_joining = models.TextField()
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    approved_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-submitted_at']
+    
+    def __str__(self):
+        return f"{self.full_name} - {self.phone_number} ({self.status})"

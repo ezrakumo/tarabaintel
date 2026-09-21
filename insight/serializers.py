@@ -4,6 +4,8 @@ from .models import (
 )
 from .models import UserProfile
 from .models import RewardCatalog # Ensure this is at the top of your file
+from .models import AgentRegistrationRequest
+
 
 
 # ==========================================
@@ -173,3 +175,17 @@ class RewardsDashboardSerializer(serializers.Serializer):
     affordable_rewards = DashboardRewardSerializer(many=True)
     next_tier = serializers.CharField(allow_null=True)
     points_to_next_tier = serializers.IntegerField(allow_null=True)
+
+
+class AgentRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentRegistrationRequest
+        fields = [
+            'full_name', 'phone_number', 'email', 'lga', 'state',
+            'id_card_image', 'reason_for_joining', 'referred_by'
+        ]
+        extra_kwargs = {
+            'id_card_image': {'required': False},
+            'email': {'required': False},
+            'referred_by': {'required': False}
+        }

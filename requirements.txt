@@ -10,3 +10,7 @@ channels>=4.0
 uvicorn
 daphne
 dj-database-url>=1.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0 
+websockets>=11.0 

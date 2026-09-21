@@ -1,24 +1,31 @@
-"""
-Django settings for tarabaintel project.
-"""
-from pathlib import Path
 import os
+from pathlib import Path
 import dj_database_url
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-o**!299o2dq)d@s(+b!tuj0&i*fqet(@&@xt14(r892rp!43%0'
+# ✅ 1. SECURE SECRET KEY
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-for-local-dev-only-CHANGE-IN-PRODUCTION')
 
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+# ✅ 2. SECURE DEBUG
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
-# Tell Django where the PostGIS mapping libraries are located on Windows (Local only)
-if os.name == 'nt':
-    os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
-    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
-    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
+# ✅ 3. SECURE HOSTS (Cleaned up, no duplicates)
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+for host in ['localhost', '127.0.0.1', 'tarabaintel-ai.onrender.com', '*']:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
+# ✅ 4. SECURE PROXY SETTINGS (Required for Render's HTTPS load balancer)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+# ✅ 5. SECURE COOKIES
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# ✅ 6. INSTALLED APPS
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,8 +46,9 @@ INSTALLED_APPS = [
     'insight',
 ]
 
+# ✅ 7. MIDDLEWARE (CorsMiddleware MUST be at the very top)
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # ✅ MUST BE AT THE VERY TOP
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -68,10 +76,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
-# ✅ FIXED: Changed from 'tarabaintel_ai' to 'tarabaintel' to match your actual folder name!
 ASGI_APPLICATION = 'tarabaintel.asgi.application'
 
-# Database Configuration
+# ✅ 8. DATABASE CONFIGURATION (PostGIS)
 db_url = os.environ.get('DATABASE_URL', 'postgresql://tarabaintel_user:7n2CKWXlQJrCYzlzoaVejxvoRW0sUPih@dpg-dae5d5dbedkc73bd8d20-a.oregon-postgres.render.com/tarabaintel')
 is_sqlite = 'sqlite' in db_url
 
@@ -86,11 +93,13 @@ DATABASES = {
 if not is_sqlite:
     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 
-# Static files
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# ✅ 9. LOCAL WINDOWS POSTGIS PATHS (Ignored on Render/Linux)
+if os.name == 'nt':
+    os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
+    GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
+    GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
-# Password validation
+# ✅ 10. PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -103,17 +112,17 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ==========================================
-# CORS SETTINGS (Cleaned up, no duplicates)
-# ==========================================
-CORS_ALLOW_ALL_ORIGINS = True
+# ✅ 11. STATIC FILES
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# ✅ 12. CORS SETTINGS (Cleaned up)
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
 
-# ==========================================
-# JWT AUTHENTICATION SETTINGS
-# ==========================================
+# ✅ 13. REST FRAMEWORK & JWT SETTINGS
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -129,20 +138,23 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# ==========================================
-# EMAIL CONFIGURATION
-# ==========================================
+# ✅ 14. EMAIL CONFIGURATION (Cleaned up, single source of truth)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your_email@gmail.com' # Replace with your actual email
-EMAIL_HOST_PASSWORD = 'your_app_password' # Replace with your actual App Password
-DEFAULT_FROM_EMAIL = 'TarabaInsight Alerts <your_email@gmail.com>'
+EMAIL_USE_SSL = False
 
-# ==========================================
-# CHANNELS / WEBSOCKET SETTINGS
-# ==========================================
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '#MYGMAIL1@.kure2#')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
+    'WEEKLY_FORECAST_RECIPIENTS', 
+    'admin@tarabaintel.gov.ng,ops@tarabaintel.gov.ng'
+).split(',')
+
+# ✅ 15. CHANNELS / WEBSOCKET SETTINGS
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"

@@ -1,5 +1,9 @@
 from django.contrib import admin, messages
-from .models import Report, FieldVerification, UserProfile, RewardCatalog, RewardLedger, IntelligenceSummary
+from django.utils import timezone
+from .models import (
+    Report, FieldVerification, UserProfile, RewardCatalog, 
+    RewardLedger, IntelligenceSummary, AgentRegistrationRequest
+)
 from .services.intelligence_cycle import IntelligenceCycleEngine
 
 # ✅ CUSTOM ADMIN ACTION FOR ONE-CLICK SITREP
@@ -29,7 +33,7 @@ class ReportAdmin(admin.ModelAdmin):
     search_fields = ('description', 'submitted_by__username')
     actions = [generate_and_email_sitrep]
 
-# ✅ FIELD VERIFICATION ADMIN (Simplified to safe fields)
+# ✅ FIELD VERIFICATION ADMIN
 @admin.register(FieldVerification)
 class FieldVerificationAdmin(admin.ModelAdmin):
     list_display = ('id', 'report', 'status', 'is_valid')
@@ -53,8 +57,33 @@ class RewardLedgerAdmin(admin.ModelAdmin):
     list_display = ('user_profile', 'transaction_type', 'points', 'created_at')
     list_filter = ('transaction_type',)
 
-# ✅ INTELLIGENCE SUMMARY ADMIN (Simplified to safe fields)
+# ✅ INTELLIGENCE SUMMARY ADMIN
 @admin.register(IntelligenceSummary)
 class IntelligenceSummaryAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'generated_at')
-    # Removed list_filter to avoid field name mismatches
+
+# ✅ NEW: AGENT REGISTRATION REQUEST ADMIN
+@admin.register(AgentRegistrationRequest)
+class AgentRegistrationRequestAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'phone_number', 'lga', 'status', 'submitted_at')
+    list_filter = ('status', 'lga', 'submitted_at')
+    search_fields = ('full_name', 'phone_number')
+    readonly_fields = ('submitted_at', 'approved_at', 'approved_by')
+    
+    actions = ['bulk_approve_agents', 'bulk_reject_agents']
+    
+    @admin.action(description='✅ Approve Selected Agents')
+    def bulk_approve_agents(self, request, queryset):
+        count = 0
+        for registration in queryset.filter(status='PENDING'):
+            registration.status = 'APPROVED'
+            registration.approved_by = request.user
+            registration.approved_at = timezone.now()
+            registration.save()
+            count += 1
+        self.message_user(request, f'{count} agent(s) approved successfully!')
+    
+    @admin.action(description='❌ Reject Selected Agents')
+    def bulk_reject_agents(self, request, queryset):
+        count = queryset.filter(status='PENDING').update(status='REJECTED')
+        self.message_user(request, f'{count} agent(s) rejected.')

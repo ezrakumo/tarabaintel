@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'pending_verifications_screen.dart';
 import 'analytics_screen.dart';
+import 'stakeholder_dashboard_screen.dart';
 
 class CommandCenterScreen extends StatefulWidget {
   const CommandCenterScreen({Key? key}) : super(key: key);
@@ -16,7 +17,7 @@ class CommandCenterScreen extends StatefulWidget {
 }
 
 class _CommandCenterScreenState extends State<CommandCenterScreen> {
-  late WebSocketChannel channel;
+  WebSocketChannel? channel;
   final List<Map<String, dynamic>> _threats = [];
   final MapController _mapController = MapController();
   List<Hotspot> _hotspots = [];
@@ -35,7 +36,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     String? token = prefs.getString('jwt_token'); 
     
     if (token == null || token.isEmpty) {
-      print(" SECURITY BLOCK: No JWT token found. User must log in.");
+      print("🛡️ SECURITY BLOCK: No JWT token found. User must log in.");
       return;
     }
 
@@ -44,7 +45,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
     channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
-    channel.stream.listen(
+    channel!.stream.listen(
       (message) {
         try {
           final data = jsonDecode(message);
@@ -55,7 +56,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(" NEW THREAT: ${data['report']['category']}"),
+                content: Text("🚨 NEW THREAT: ${data['report']['category']}"),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -94,7 +95,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print(" Predictive AI found ${data['hotspot_count']} hotspots");
+        print("🤖 Predictive AI found ${data['hotspot_count']} hotspots");
         
         setState(() {
           _hotspots = (data['hotspots'] as List).map((h) => Hotspot.fromJson(h)).toList();
@@ -107,7 +108,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     }
   }
 
-      List<CircleMarker> _buildHotspotCircles() {
+  List<CircleMarker> _buildHotspotCircles() {
     return _hotspots.map((hotspot) {
       Color circleColor;
       Color borderColor;
@@ -126,9 +127,6 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           borderColor = Colors.yellow;
       }
       
-      // ✅ DYNAMIC RADIUS SCALING
-      // Convert km to pixels: Base scale of 100 pixels per km
-      // Minimum 50px, Maximum 300px for visibility
       double radiusInPixels = (hotspot.radiusKm * 100).clamp(50.0, 300.0);
       
       return CircleMarker(
@@ -143,12 +141,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   
   @override
   void dispose() {
-    channel.sink.close();
+    channel?.sink.close();
     super.dispose();
   }
 
-  Color _getUrgencyColor(String urgency) {
+  Color _getUrgencyColor(String? urgency) {
     if (urgency == 'CRITICAL') return Colors.red;
+    if (urgency == 'HIGH') return Colors.orange;
     if (urgency == 'MODERATE') return Colors.orange;
     return Colors.blue;
   }
@@ -158,11 +157,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E17),
       appBar: AppBar(
-        title: const Text('Taraba Command Center'),
+        title: const Text('Taraba Command Center', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
-          // ✅ NEW: Pending Verifications Button
           IconButton(
             icon: const Icon(Icons.task_alt, color: Colors.amber),
             tooltip: 'Pending Verifications',
@@ -179,18 +177,27 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             onPressed: () {
               Navigator.push(
                 context, 
-                MaterialPageRoute(builder: (context) => AnalyticsScreen()),
+                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
               );
             },
-        ),
-          // Existing LIVE Indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
+          ),
+          IconButton(
+            icon: const Icon(Icons.assessment, color: Colors.purpleAccent),
+            tooltip: 'Intelligence Dashboard',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const StakeholderDashboardScreen()),
+              );
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.only(right: 16.0),
             child: Row(
               children: [
-                Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                const SizedBox(width: 8),
-                const Text('LIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                SizedBox(width: 8, height: 8, child: DecoratedBox(decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle))),
+                SizedBox(width: 8),
+                Text('LIVE', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
               ],
             ),
           )
@@ -198,21 +205,22 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       ),
       body: Stack(
         children: [
+          // 1. BASE LAYER: THE MAP
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(
+            options: const MapOptions(
               initialCenter: LatLng(8.8833, 11.3667),
               initialZoom: 8,
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: ['a', 'b', 'c'],
+                subdomains: const ['a', 'b', 'c'],
               ),
               MarkerLayer(
                 markers: _threats.map((threat) {
                   return Marker(
-                    point: LatLng(threat['lat'], threat['lon']),
+                    point: LatLng(threat['lat'] ?? 8.8833, threat['lon'] ?? 11.3667),
                     width: 40,
                     height: 40,
                     child: GestureDetector(
@@ -230,15 +238,32 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             ],
           ),
           
-           Positioned(
+          // 2. TOP FLOATING CARD: INTELLIGENCE DASHBOARD QUICK LINK
+          const Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: _DashboardQuickLinkCard(),
+          ),
+
+          // 3. BOTTOM FLOATING CARD: LIVE INTELLIGENCE FEED
+          Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             height: 200,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1F2937),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              // ✅ NO 'const' HERE, ALLOWING DYNAMIC OPACITY CALCULATION
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -248,16 +273,16 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   ),
                   Expanded(
                     child: _threats.isEmpty
-                        ? const Center(child: Text('Monitoring...', style: TextStyle(color: Colors.grey)))
+                        ? const Center(child: Text('Monitoring airspace...', style: TextStyle(color: Colors.grey)))
                         : ListView.builder(
                             itemCount: _threats.length,
                             itemBuilder: (context, index) {
                               final threat = _threats[index];
                               return ListTile(
                                 leading: Icon(Icons.warning, color: _getUrgencyColor(threat['urgency'])),
-                                title: Text(threat['category'], style: const TextStyle(color: Colors.white)),
-                                subtitle: Text(threat['description'], maxLines: 1, style: const TextStyle(color: Colors.grey)),
-                                trailing: Text(threat['urgency'], style: TextStyle(color: _getUrgencyColor(threat['urgency']), fontWeight: FontWeight.bold)),
+                                title: Text(threat['category'] ?? 'Unknown', style: const TextStyle(color: Colors.white)),
+                                subtitle: Text(threat['description'] ?? 'No description', maxLines: 1, style: const TextStyle(color: Colors.grey)),
+                                trailing: Text(threat['urgency'] ?? 'MODERATE', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
                               );
                             },
                           ),
@@ -276,17 +301,64 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1F2937),
-        title: Text(threat['category'], style: const TextStyle(color: Colors.white)),
-        content: Text(threat['description'], style: const TextStyle(color: Colors.grey)),
+        title: Text(threat['category'] ?? 'Unknown Threat', style: const TextStyle(color: Colors.white)),
+        content: Text(threat['description'] ?? 'No details available.', style: const TextStyle(color: Colors.grey)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close', style: TextStyle(color: Colors.white))),
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Close', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
   }
 }
 
-// ✅ HOTSPOT MODEL CLASS (FIXED FOR UUID STRINGS)
+// ✅ EXTRACTED TOP CARD TO A SEPARATE WIDGET FOR CLEANER CODE & NO CONST ERRORS
+class _DashboardQuickLinkCard extends StatelessWidget {
+  const _DashboardQuickLinkCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)]),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.analytics, color: Colors.white, size: 32),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Intelligence Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('Real-time KPIs & Active Threats', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_forward, color: Colors.white),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const StakeholderDashboardScreen()));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ✅ HOTSPOT MODEL CLASS
 class Hotspot {
   final int clusterId;
   final double centerLat;
@@ -294,7 +366,7 @@ class Hotspot {
   final double radiusKm;
   final int reportCount;
   final String threatLevel;
-  final List<String> reportIds; // ✅ CHANGED FROM List<int> TO List<String>
+  final List<String> reportIds;
   
   Hotspot({
     required this.clusterId,
@@ -314,7 +386,6 @@ class Hotspot {
       radiusKm: (json['radius_km'] ?? 0.0).toDouble(),
       reportCount: json['report_count'] ?? 0,
       threatLevel: json['threat_level'] ?? 'MODERATE',
-      // ✅ SAFELY CONVERT TO LIST OF STRINGS (UUIDs)
       reportIds: (json['report_ids'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList() ?? [],

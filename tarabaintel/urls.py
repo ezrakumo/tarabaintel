@@ -54,4 +54,5 @@ urlpatterns = [
     
     # ✅ 6. ROUTING TEST ENDPOINT (To prove the router is working)
     path('api/test-routing/', lambda request: HttpResponse("Router is working perfectly!"), name='test-routing'),
+    path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
 ]

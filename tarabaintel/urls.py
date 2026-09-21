@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from rest_framework.routers import DefaultRouter
+from insight.views import AgentRegistrationRequestView, AgentApprovalView
 
 from accounts.views import RegisterView, ProfileView
 from insight.views import (
@@ -61,4 +62,9 @@ urlpatterns = [
     # Intelligence Cycle Endpoints
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
+     # Agent Registration & Approval
+    path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
+    path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
+
+
 ]

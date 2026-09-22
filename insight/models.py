@@ -17,8 +17,6 @@ class LGA(models.Model):
     def __str__(self):
         return self.name
 
-
-# ✅ 1. ADDED THE MISSING REPORT MODEL (MUST BE ABOVE FIELDVERIFICATION)
 class Report(models.Model):
     STATUS_CHOICES = [
         ('RAW', 'Raw Submission'),
@@ -38,23 +36,52 @@ class Report(models.Model):
     issue_category = models.CharField(max_length=100)
     description = models.TextField()
     
-    # Location data
+    # Location & Media
     lat = models.FloatField(null=True, blank=True)
     lon = models.FloatField(null=True, blank=True)
     location = gis_models.PointField(null=True, blank=True, srid=4326)
+    image_base64 = models.TextField(blank=True, null=True, help_text="Base64 encoded image")
     
     # AI Analysis
-    ai_urgency_level = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='MODERATE')
+    ai_suggested_category = models.CharField(max_length=100, blank=True, null=True)
     ai_confidence_score = models.FloatField(default=0.5)
-    ai_summary = models.TextField(blank=True)
+    ai_sentiment = models.CharField(max_length=50, blank=True, null=True)
+    ai_urgency_level = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='MODERATE')
+    ai_extracted_entities = models.JSONField(default=list, blank=True, null=True)
+    ai_summary = models.TextField(blank=True, null=True)
     
-     # ✅ NEW: Auto-flagging tracker
+    # Gamification & Tracking
+    is_covert = models.BooleanField(default=False)
+    intel_quality_score = models.FloatField(default=0.0)
+    points_awarded = models.IntegerField(default=0)
+    acknowledgment_sent = models.BooleanField(default=False)
+    
+    # ✅ NEW: Auto-flagging tracker
     auto_flagged_critical = models.BooleanField(default=False, help_text="Auto-escalated by keyword detection")
-    
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RAW')
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"Report #{self.id} - {self.issue_category} ({self.status})"
+
+    # ✅ AUTO-ESCALATION LOGIC
+    def save(self, *args, **kwargs):
+        critical_keywords = [
+            'armed', 'clash', 'gun', 'kidnap', 'bomb', 'suspicious', 
+            'attack', 'militia', 'herdsmen', 'fulani', 'assault', 'shooting'
+        ]
+        text_to_check = f"{self.issue_category} {self.description}".lower()
+        
+        if any(keyword in text_to_check for keyword in critical_keywords):
+            self.ai_urgency_level = 'CRITICAL'
+            self.auto_flagged_critical = True
+            
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-submitted_at']

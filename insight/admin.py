@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.utils.html import format_html
-from django.apps import apps
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
     IntelligenceSummary, PatternAlert, RewardCatalog, 
@@ -136,5 +135,3 @@ class PatternAlertAdmin(admin.ModelAdmin):
 class LGAAdmin(admin.ModelAdmin):
     list_display = ('name', 'state', 'population')
 
-# ✅ REGISTER DEFAULT ADMIN TOO (for Users/Groups)
-admin.site.register(apps.get_model('auth', 'Group'))

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ ADDED IMPORT
 import '../models/reward_models.dart';
 import '../services/reward_service.dart';
 import 'report_submission_screen.dart';
 import 'pending_verifications_screen.dart';
 import 'command_center_screen.dart';
+import 'login_screen.dart'; // ✅ ADDED IMPORT
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -78,6 +80,22 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ✅ SECURE LOGOUT FUNCTION (Moved to class level, outside build method)
+  Future<void> _handleLogout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token'); // Wipe the token!
+    print("🚪 Token deleted. User logged out.");
+
+    if (mounted) {
+      // Push to login and remove all previous screens from the stack
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false, 
       );
     }
   }
@@ -161,9 +179,14 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Data',
-            onPressed: () {
-              _loadData(); 
-            },
+            onPressed: _loadData, 
+          ),
+
+          // ✅ 5. RED LOGOUT ICON (NEW!)
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            tooltip: 'Secure Logout',
+            onPressed: _handleLogout,
           ),
         ],
       ),
@@ -193,7 +216,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          userTier, // ✅ USE FLAT userTier
+                          userTier,
                           style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -312,7 +335,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                       ),
                     )).toList(),
                   ),
-          ],
+          ], // ✅ End of Column children
         ),
       ),
     );

@@ -95,6 +95,7 @@ class AgentRegistrationRequestAdmin(admin.ModelAdmin):
                     password=registration.phone_number,  # Temporary password
                     first_name=registration.full_name,
                     email=registration.email or '',
+                    is_active=True, 
                 )
                 
                 # 2. Create UserProfile for rewards system

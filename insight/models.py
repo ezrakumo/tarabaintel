@@ -48,6 +48,10 @@ class Report(models.Model):
     ai_confidence_score = models.FloatField(default=0.5)
     ai_summary = models.TextField(blank=True)
     
+     # ✅ NEW: Auto-flagging tracker
+    auto_flagged_critical = models.BooleanField(default=False, help_text="Auto-escalated by keyword detection")
+    
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RAW')
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -57,6 +61,24 @@ class Report(models.Model):
 
     def __str__(self):
         return f"Report #{self.id} - {self.issue_category} ({self.status})"
+    
+    # ✅ NEW: AUTO-ESCALATION LOGIC
+    def save(self, *args, **kwargs):
+        # Define critical intelligence keywords (expand this list as needed)
+        critical_keywords = [
+            'armed', 'clash', 'gun', 'kidnap', 'bomb', 'suspicious', 
+            'attack', 'militia', 'herdsmen', 'fulani', 'assault', 'shooting'
+        ]
+        
+        # Combine category and description for scanning
+        text_to_check = f"{self.issue_category} {self.description}".lower()
+        
+        # If any keyword is found, auto-escalate to CRITICAL
+        if any(keyword in text_to_check for keyword in critical_keywords):
+            self.ai_urgency_level = 'CRITICAL'
+            self.auto_flagged_critical = True
+            
+        super().save(*args, **kwargs)
 
 
 class FieldAgent(models.Model):

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'rewards_dashboard_screen.dart';
-
+import 'agent_registration_screen.dart'; // ✅ NEW IMPORT
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -32,8 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
         body: jsonEncode({'username': username, 'password': password}),
       );
 
-      print(" Login API Status: ${response.statusCode}");
-      print("📡 Login API Body: ${response.body}");
+      print("📡 Login API Status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -82,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E17),
       body: Center(
-        child: SingleChildScrollView(
+        child: SingleChildScrollView( // ✅ PERFECTLY FORMATTED
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -132,6 +131,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.black)
                       : const Text('LOGIN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // ✅ NEW: BUTTON TO ACCESS AGENT REGISTRATION
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AgentRegistrationScreen()),
+                  );
+                },
+                child: const Text(
+                  'Apply to Join as Field Agent',
+                  style: TextStyle(color: Color(0xFFEAB308), fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

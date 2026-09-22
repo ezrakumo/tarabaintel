@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 
 class AgentRegistrationScreen extends StatefulWidget {
   const AgentRegistrationScreen({Key? key}) : super(key: key);
@@ -16,77 +14,45 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _lgaController = TextEditingController();
   final _reasonController = TextEditingController();
-  final _referredByController = TextEditingController();
   
-  String? _selectedLga;
-  File? _idCardImage;
   bool _isLoading = false;
-  
-  final ImagePicker _picker = ImagePicker();
-
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          _idCardImage = File(image.path);
-        });
-      }
-    } catch (e) {
-      print("❌ Error picking image: $e");
-    }
-  }
 
   Future<void> _submitRegistration() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_idCardImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload your ID card'), backgroundColor: Colors.red),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
     try {
-      var request = http.MultipartRequest(
-        'POST',
+      final response = await http.post(
         Uri.parse('https://tarabaintel-ai.onrender.com/api/agents/register/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'full_name': _fullNameController.text.trim(),
+          'phone_number': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'lga': _lgaController.text.trim(),
+          'reason_for_joining': _reasonController.text.trim(),
+        }),
       );
 
-      request.fields['full_name'] = _fullNameController.text;
-      request.fields['phone_number'] = _phoneController.text;
-      request.fields['reason_for_joining'] = _reasonController.text;
-      if (_emailController.text.isNotEmpty) {
-        request.fields['email'] = _emailController.text;
-      }
-      if (_referredByController.text.isNotEmpty) {
-        request.fields['referred_by'] = _referredByController.text;
-      }
-
-      if (_idCardImage != null) {
-        request.files.add(await http.MultipartFile.fromPath('id_card_image', _idCardImage!.path));
-      }
-
-      var response = await request.send();
-      var responseBody = await response.stream.bytesToString();
-
       if (response.statusCode == 201) {
+        // Success!
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF1F2937),
-            title: const Text('✅ Registration Submitted!', style: TextStyle(color: Colors.white)),
+            title: const Text('✅ Application Submitted!', style: TextStyle(color: Colors.white)),
             content: const Text(
-              'Your application has been submitted. You will be contacted once approved by the command.',
+              'Your application has been received. The Command will review your details and contact you upon approval.',
               style: TextStyle(color: Colors.grey),
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Go back to login
                 },
                 child: const Text('OK', style: TextStyle(color: Color(0xFFEAB308))),
               ),
@@ -94,9 +60,14 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
           ),
         );
       } else {
-        final data = jsonDecode(responseBody);
+        final data = jsonDecode(response.body);
+        String errorMsg = 'Registration failed. Please try again.';
+        if (data['phone_number'] != null) {
+          errorMsg = 'This phone number is already registered.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['error'] ?? 'Registration failed'), backgroundColor: Colors.red),
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -113,11 +84,11 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E17),
       appBar: AppBar(
-        title: const Text('Agent Registration'),
+        title: const Text('Agent Application'),
         backgroundColor: const Color(0xFF1F2937),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
@@ -134,55 +105,21 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
               ),
               const SizedBox(height: 32),
 
-              TextFormField(
-                controller: _fullNameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
-                  filled: true,
-                  fillColor: Color(0xFF1F2937),
-                ),
-                validator: (value) => value!.isEmpty ? 'Required' : null,
-              ),
+              _buildTextField(_fullNameController, 'Full Name', false),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
-                  filled: true,
-                  fillColor: Color(0xFF1F2937),
-                ),
-                validator: (value) => value!.isEmpty ? 'Required' : null,
-              ),
+              _buildTextField(_phoneController, 'Phone Number', false, TextInputType.phone),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Email (Optional)',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
-                  filled: true,
-                  fillColor: Color(0xFF1F2937),
-                ),
-              ),
+              _buildTextField(_emailController, 'Email Address', true, TextInputType.emailAddress),
+              const SizedBox(height: 16),
+
+              _buildTextField(_lgaController, 'Local Government Area (LGA)', false),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _reasonController,
-                maxLines: 3,
+                maxLines: 4,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Why do you want to join?',
@@ -192,34 +129,9 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
                   filled: true,
                   fillColor: Color(0xFF1F2937),
                 ),
-                validator: (value) => value!.isEmpty ? 'Required' : null,
+                validator: (value) => value!.isEmpty ? 'Please tell us your motivation' : null,
               ),
-              const SizedBox(height: 24),
-
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1F2937),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey),
-                  ),
-                  child: _idCardImage == null
-                      ? const Column(
-                          children: [
-                            Icon(Icons.cloud_upload, size: 48, color: Colors.grey),
-                            SizedBox(height: 8),
-                            Text('Upload ID Card Image', style: TextStyle(color: Colors.grey)),
-                          ],
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(_idCardImage!, height: 150, fit: BoxFit.cover),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               ElevatedButton(
                 onPressed: _isLoading ? null : _submitRegistration,
@@ -227,6 +139,7 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
                   backgroundColor: const Color(0xFFEAB308),
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.black)
@@ -236,6 +149,28 @@ class _AgentRegistrationScreenState extends State<AgentRegistrationScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, bool isOptional, [TextInputType? keyboardType]) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: isOptional ? '$label (Optional)' : label,
+        labelStyle: const TextStyle(color: Colors.grey),
+        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+        focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEAB308))),
+        filled: true,
+        fillColor: const Color(0xFF1F2937),
+      ),
+      validator: (value) {
+        if (!isOptional && (value == null || value.isEmpty)) {
+          return '$label is required';
+        }
+        return null;
+      },
     );
   }
 }

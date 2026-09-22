@@ -70,7 +70,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                
             ],
         },
     },
@@ -113,8 +112,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ✅ 11. STATIC FILES
-STATIC_URL = 'static/'
+# ✅ 11. STATIC FILES (Fixed & Consolidated)
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # ✅ 12. CORS SETTINGS (Cleaned up)
@@ -155,15 +154,9 @@ WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
     'admin@tarabaintel.gov.ng,ops@tarabaintel.gov.ng'
 ).split(',')
 
-# ✅ 15. CHANNELS / WEBSOCKET SETTINGS
+# ✅ 15. CHANNELS / WEBSOCKET SETTINGS (Properly closed!)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
-    
-   
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 }

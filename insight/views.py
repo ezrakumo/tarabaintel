@@ -154,8 +154,22 @@ class ReportViewSet(viewsets.ModelViewSet):
 
 
 class FieldVerificationViewSet(viewsets.ModelViewSet):
-    queryset = FieldVerification.objects.all().order_by('-assigned_at')
     serializer_class = FieldVerificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    # ✅ CRITICAL SECURITY FIX: Filter missions by logged-in user
+    def get_queryset(self):
+        user = self.request.user
+        
+        # 1. COMMAND CENTER: Superusers/Staff see everything
+        if user.is_staff or user.is_superuser:
+            return FieldVerification.objects.all().order_by('-assigned_at')
+        
+        # 2. FIELD AGENT: Only see tasks assigned to them
+        # (Matches the agent's 'name' to the user's 'first_name' set during registration approval)
+        return FieldVerification.objects.filter(
+            assigned_agent__name=user.first_name
+        ).order_by('-assigned_at')
     
     @action(detail=True, methods=['post'])
     def claim(self, request, pk=None):
@@ -165,6 +179,11 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             agent_id = serializer.validated_data['agent_id']
             try:
                 agent = FieldAgent.objects.get(agent_id=agent_id, is_active=True)
+                
+                # ✅ SECURITY CHECK: Ensure agent can only claim tasks assigned to them
+                if verification.assigned_agent and verification.assigned_agent.agent_id != agent_id:
+                    return Response({'error': 'This task is assigned to another agent.'}, status=status.HTTP_403_FORBIDDEN)
+                
                 verification.assigned_agent = agent
                 verification.status = 'IN_PROGRESS'
                 verification.claimed_at = timezone.now()

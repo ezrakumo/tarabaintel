@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',  # For development
     'django.contrib.staticfiles',
     
     # Third-party apps
@@ -55,6 +56,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -115,6 +117,8 @@ USE_TZ = True
 # ✅ 11. STATIC FILES (Fixed & Consolidated)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# ✅ ADD THIS LINE FOR GUNICORN STATIC FILE SERVING
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ✅ 12. CORS SETTINGS (Cleaned up)
 CORS_ALLOW_CREDENTIALS = True

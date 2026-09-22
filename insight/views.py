@@ -161,12 +161,11 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         
-        # 1. COMMAND CENTER: Superusers/Staff see everything
-        if user.is_staff or user.is_superuser:
+        # ✅ 1. COMMAND CENTER: ONLY Superusers see everything
+        if user.is_superuser:
             return FieldVerification.objects.all().order_by('-assigned_at')
         
-        # 2. FIELD AGENT: Only see tasks assigned to them
-        # (Matches the agent's 'name' to the user's 'first_name' set during registration approval)
+        # ✅ 2. FIELD AGENT: Only see tasks assigned to them
         return FieldVerification.objects.filter(
             assigned_agent__name=user.first_name
         ).order_by('-assigned_at')

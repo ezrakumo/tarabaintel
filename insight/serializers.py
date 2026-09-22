@@ -177,15 +177,9 @@ class RewardsDashboardSerializer(serializers.Serializer):
     points_to_next_tier = serializers.IntegerField(allow_null=True)
 
 
+# ✅ FIXED: Perfectly matches the AgentRegistrationRequest model
 class AgentRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentRegistrationRequest
-        fields = [
-            'full_name', 'phone_number', 'email', 'lga', 'state',
-            'id_card_image', 'reason_for_joining', 'referred_by'
-        ]
-        extra_kwargs = {
-            'id_card_image': {'required': False},
-            'email': {'required': False},
-            'referred_by': {'required': False}
-        }
+        # ✅ ONLY INCLUDE FIELDS THAT ACTUALLY EXIST IN THE MODEL
+        fields = ['full_name', 'phone_number', 'email', 'lga', 'reason_for_joining']

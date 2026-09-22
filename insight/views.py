@@ -525,31 +525,40 @@ from .serializers import AgentRegistrationSerializer
 User = get_user_model()
 
 class AgentRegistrationRequestView(APIView):
-    """
-    Allows prospective agents to request registration
-    """
-    permission_classes = [AllowAny]  # Public endpoint for registration
+    permission_classes = [AllowAny]
     
     def post(self, request):
-        serializer = AgentRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            # Check if phone already exists
-            if User.objects.filter(username=serializer.validated_data['phone_number']).exists():
-                return Response(
-                    {'error': 'Phone number already registered'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        try:
+            serializer = AgentRegistrationSerializer(data=request.data)
+            if serializer.is_valid():
+                # Check if phone already exists
+                if User.objects.filter(username=serializer.validated_data['phone_number']).exists():
+                    return Response(
+                        {'error': 'Phone number already registered'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Save the registration request
+                serializer.save()
+                
+                return Response({
+                    'status': 'success',
+                    'message': 'Registration request submitted. Awaiting admin approval.'
+                }, status=status.HTTP_201_CREATED)
             
-            # Create registration request
-            registration = serializer.save()
+            # If serializer is invalid, return the specific field errors
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            # ✅ THIS WILL PRINT THE EXACT PYTHON ERROR TO RENDER LOGS
+            import traceback
+            print("❌ CRITICAL ERROR IN AGENT REGISTRATION:")
+            traceback.print_exc()
             
             return Response({
-                'status': 'success',
-                'message': 'Registration request submitted. Awaiting admin approval.',
-                'request_id': registration.id
-            }, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                'error': 'Internal server error', 
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AgentApprovalView(APIView):

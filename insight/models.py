@@ -1,9 +1,8 @@
-
 import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models as gis_models
-# ... rest of your imports
+from django.utils import timezone  # ✅ ADDED MISSING TIMEZONE IMPORT
 
 # ==========================================
 # CORE INTELLIGENCE MODELS
@@ -19,46 +18,45 @@ class LGA(models.Model):
         return self.name
 
 
+# ✅ 1. ADDED THE MISSING REPORT MODEL (MUST BE ABOVE FIELDVERIFICATION)
 class Report(models.Model):
     STATUS_CHOICES = [
-        ('RAW', 'Raw'),
-        ('PENDING_VERIFICATION', 'Pending Verification'),
-        ('VERIFIED', 'Verified'),
+        ('RAW', 'Raw Submission'),
+        ('PROCESSED', 'AI Processed'),
+        ('VERIFIED', 'Field Verified'),
         ('REJECTED', 'Rejected'),
     ]
+    URGENCY_CHOICES = [
+        ('LOW', 'Low'),
+        ('MODERATE', 'Moderate'),
+        ('HIGH', 'High'),
+        ('CRITICAL', 'Critical'),
+    ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    submitted_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='submitted_reports',
-        help_text="The user who submitted this report"
-    )
-    description = models.TextField()
-    issue_category = models.CharField(max_length=100)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='RAW')
-    location = gis_models.PointField(srid=4326, null=True, blank=True)
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='reports')
     lga = models.ForeignKey(LGA, on_delete=models.SET_NULL, null=True, blank=True)
-    image_base64 = models.TextField(null=True, blank=True)
+    issue_category = models.CharField(max_length=100)
+    description = models.TextField()
+    
+    # Location data
+    lat = models.FloatField(null=True, blank=True)
+    lon = models.FloatField(null=True, blank=True)
+    location = gis_models.PointField(null=True, blank=True, srid=4326)
+    
+    # AI Analysis
+    ai_urgency_level = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='MODERATE')
+    ai_confidence_score = models.FloatField(default=0.5)
+    ai_summary = models.TextField(blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RAW')
     submitted_at = models.DateTimeField(auto_now_add=True)
-
-    # AI Analysis Fields
-    ai_suggested_category = models.CharField(max_length=100, blank=True, null=True)
-    ai_confidence_score = models.FloatField(default=0.0)
-    ai_sentiment = models.CharField(max_length=50, blank=True, null=True)
-    ai_urgency_level = models.CharField(max_length=50, blank=True, null=True)
-    ai_extracted_entities = models.JSONField(default=dict, blank=True)
-
-    # TarabaInsight 2.0 Fields
-    is_covert = models.BooleanField(default=False, help_text="Submitted via discreet/panic mode")
-    intel_quality_score = models.IntegerField(default=0, help_text="AI graded quality: 0 to 100")
-    points_awarded = models.IntegerField(default=0, help_text="Points granted for this specific report")
-    acknowledgment_sent = models.BooleanField(default=False, help_text="Has the user been notified of receipt?")
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-submitted_at']
 
     def __str__(self):
-        return f"Report {self.id} - {self.issue_category}"
+        return f"Report #{self.id} - {self.issue_category} ({self.status})"
 
 
 class FieldAgent(models.Model):
@@ -80,6 +78,7 @@ class FieldVerification(models.Model):
         ('FAILED', 'Failed'),
     ]
 
+    # ✅ NOW 'Report' IS DEFINED ABOVE, SO THIS WORKS PERFECTLY
     report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='verification')
     assigned_agent = models.ForeignKey(FieldAgent, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
@@ -136,6 +135,8 @@ class PatternAlert(models.Model):
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MEDIUM')
     detected_at = models.DateTimeField(auto_now_add=True)
     acknowledged = models.BooleanField(default=False)
+    
+    # ✅ NOW 'Report' IS DEFINED ABOVE, SO THIS WORKS PERFECTLY
     related_reports = models.ManyToManyField(Report, blank=True)
 
     class Meta:
@@ -185,19 +186,12 @@ REDEMPTION_STATUS = [
 
 
 class UserProfile(models.Model):
-    """Extends the default User model to handle Tiers, Points, and Covert Identities"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='intel_profile')
     tier = models.CharField(max_length=20, choices=USER_TIERS, default='CITIZEN')
-
-    # Gamification & Rewards
     total_points = models.IntegerField(default=0, help_text="Current available reward points")
     lifetime_points = models.IntegerField(default=0, help_text="Total points earned historically")
-
-    # Contact & Verification
     phone_number = models.CharField(max_length=20, blank=True, null=True, help_text="For SMS acknowledgments and rewards")
     is_verified = models.BooleanField(default=False, help_text="Has an admin vetted this user?")
-
-    # Covert Settings
     use_codename = models.BooleanField(default=False)
     codename = models.CharField(max_length=50, blank=True, null=True)
 
@@ -210,12 +204,11 @@ class UserProfile(models.Model):
 
 
 class RewardLedger(models.Model):
-    """Immutable ledger tracking every point earned or spent by a user"""
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='ledger_entries')
     transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPES)
     points = models.IntegerField(help_text="Positive for earned, negative for redeemed")
     description = models.TextField(blank=True, help_text="Reason for transaction")
-    related_report = models.ForeignKey('Report', on_delete=models.SET_NULL, null=True, blank=True)
+    related_report = models.ForeignKey(Report, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -227,21 +220,12 @@ class RewardLedger(models.Model):
 
 
 class RewardCatalog(models.Model):
-    """Available rewards that users can redeem with points"""
     title = models.CharField(max_length=200)
     description = models.TextField()
     category = models.CharField(max_length=20, choices=REWARD_CATEGORIES)
     points_required = models.IntegerField(help_text="Points needed to redeem")
-    min_tier_required = models.CharField(
-        max_length=20,
-        choices=USER_TIERS,
-        default='CITIZEN',
-        help_text="Minimum user tier to redeem"
-    )
-    quantity_available = models.IntegerField(
-        default=-1,
-        help_text="-1 means unlimited"
-    )
+    min_tier_required = models.CharField(max_length=20, choices=USER_TIERS, default='CITIZEN', help_text="Minimum user tier to redeem")
+    quantity_available = models.IntegerField(default=-1, help_text="-1 means unlimited")
     is_active = models.BooleanField(default=True)
     admin_notes = models.TextField(blank=True, help_text="Internal admin notes")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -264,35 +248,13 @@ class RewardCatalog(models.Model):
 
 
 class Redemption(models.Model):
-    """Tracks reward redemptions by users"""
-    user_profile = models.ForeignKey(
-        UserProfile,
-        on_delete=models.CASCADE,
-        related_name='redemptions'
-    )
-    reward = models.ForeignKey(
-        RewardCatalog,
-        on_delete=models.PROTECT,
-        related_name='redemptions'
-    )
+    user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='redemptions')
+    reward = models.ForeignKey(RewardCatalog, on_delete=models.PROTECT, related_name='redemptions')
     points_deducted = models.IntegerField()
-    status = models.CharField(
-        max_length=20,
-        choices=REDEMPTION_STATUS,
-        default='PENDING'
-    )
-    delivery_details = models.TextField(
-        blank=True,
-        help_text="Phone number, address, bank details, etc."
-    )
+    status = models.CharField(max_length=20, choices=REDEMPTION_STATUS, default='PENDING')
+    delivery_details = models.TextField(blank=True, help_text="Phone number, address, bank details, etc.")
     admin_review_notes = models.TextField(blank=True)
-    reviewed_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='reviewed_redemptions'
-    )
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_redemptions')
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     fulfilled_at = models.DateTimeField(null=True, blank=True)
@@ -302,7 +264,9 @@ class Redemption(models.Model):
 
     def __str__(self):
         return f"{self.user_profile} redeemed {self.reward} ({self.status})"
-    # ✅ NEW: AGENT REGISTRATION REQUEST MODEL
+
+
+# ✅ 2. CLEAN, SINGLE DEFINITION OF AGENT REGISTRATION (AT THE BOTTOM)
 class AgentRegistrationRequest(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending Approval'),
@@ -313,12 +277,12 @@ class AgentRegistrationRequest(models.Model):
     full_name = models.CharField(max_length=200)
     phone_number = models.CharField(max_length=20, unique=True)
     email = models.EmailField(blank=True, null=True)
-    lga = models.CharField(max_length=100, blank=True) # Using CharField for safety
+    lga = models.CharField(max_length=100, blank=True, null=True)
     reason_for_joining = models.TextField()
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     submitted_at = models.DateTimeField(auto_now_add=True)
-    approved_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
     

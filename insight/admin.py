@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.utils import timezone
 from .models import (
-    Report, FieldVerification, UserProfile, RewardCatalog, 
+    FieldAgent, Report, FieldVerification, UserProfile, RewardCatalog, 
     RewardLedger, IntelligenceSummary, AgentRegistrationRequest
 )
 from .services.intelligence_cycle import IntelligenceCycleEngine
@@ -87,3 +87,8 @@ class AgentRegistrationRequestAdmin(admin.ModelAdmin):
     def bulk_reject_agents(self, request, queryset):
         count = queryset.filter(status='PENDING').update(status='REJECTED')
         self.message_user(request, f'{count} agent(s) rejected.')
+@admin.register(FieldAgent)
+class FieldAgentAdmin(admin.ModelAdmin):
+    list_display = ('agent_id', 'name', 'is_active', 'assigned_lga')
+    list_filter = ('is_active', 'assigned_lga')
+    search_fields = ('name', 'agent_id')

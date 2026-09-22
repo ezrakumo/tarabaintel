@@ -1,141 +1,140 @@
-from django.contrib import admin, messages
-from django.utils import timezone
-from django.contrib.auth import get_user_model
+from django.contrib import admin
+from django.contrib.admin import AdminSite
+from django.utils.html import format_html
+from django.apps import apps
 from .models import (
-    FieldAgent, Report, FieldVerification, UserProfile, RewardCatalog, 
-    RewardLedger, IntelligenceSummary, AgentRegistrationRequest
+    Report, FieldAgent, FieldVerification, LGA, 
+    IntelligenceSummary, PatternAlert, RewardCatalog, 
+    RewardLedger, UserProfile, AgentRegistrationRequest, Redemption
 )
-from .services.intelligence_cycle import IntelligenceCycleEngine
+from django.utils import timezone
 
-User = get_user_model()
+# ✅ CUSTOM ADMIN SITE WITH BRANDING
+class TarabaInsightAdminSite(AdminSite):
+    site_header = "TarabaInsight Command Center"
+    site_title = "TarabaInsight Intelligence Operations"
+    index_title = "Dashboard"
+    
+admin_site = TarabaInsightAdminSite(name='tarabaintel')
 
-# ✅ CUSTOM ADMIN ACTION FOR ONE-CLICK SITREP
-@admin.action(description=' Generate Daily SITREP Now')
-def generate_and_email_sitrep(modeladmin, request, queryset):
-    try:
-        engine = IntelligenceCycleEngine()
-        sitrep = engine.generate_daily_sitrep()
-        
-        modeladmin.message_user(
-            request, 
-            f"✅ SUCCESS: Daily SITREP generated for {sitrep['date']}. Total Reports: {sitrep['statistics']['total_reports']}. Critical: {sitrep['statistics']['critical_incidents']}", 
-            level=messages.SUCCESS
-        )
-    except Exception as e:
-        modeladmin.message_user(
-            request, 
-            f"❌ ERROR: Failed to generate SITREP. Details: {str(e)}", 
-            level=messages.ERROR
-        )
+# ✅ REGISTER ALL MODELS WITH ENHANCED CONFIGURATIONS
 
-# ✅ REPORT ADMIN
-@admin.register(Report)
+@admin.register(Report, site=admin_site)
 class ReportAdmin(admin.ModelAdmin):
-    list_display = ('id', 'submitted_by', 'issue_category', 'ai_urgency_level', 'status', 'submitted_at')
+    list_display = ('id', 'submitted_by', 'issue_category', 'urgency_badge', 'status_badge', 'submitted_at')
     list_filter = ('status', 'ai_urgency_level', 'issue_category')
     search_fields = ('description', 'submitted_by__username')
-    actions = [generate_and_email_sitrep]
+    readonly_fields = ('submitted_at', 'updated_at')
+    
+    def urgency_badge(self, obj):
+        colors = {'LOW': '#28a745', 'MODERATE': '#ffc107', 'HIGH': '#fd7e14', 'CRITICAL': '#dc3545'}
+        color = colors.get(obj.ai_urgency_level, '#6c757d')
+        return format_html('<span style="color:white;background:{};padding:3px 10px;border-radius:3px;font-weight:bold;">{}</span>', color, obj.ai_urgency_level)
+    urgency_badge.short_description = 'Urgency'
+    
+    def status_badge(self, obj):
+        colors = {'RAW': '#6c757d', 'PROCESSED': '#17a2b8', 'VERIFIED': '#28a745', 'REJECTED': '#dc3545'}
+        color = colors.get(obj.status, '#6c757d')
+        return format_html('<span style="color:white;background:{};padding:3px 10px;border-radius:3px;font-weight:bold;">{}</span>', color, obj.status)
+    status_badge.short_description = 'Status'
 
-# ✅ FIELD VERIFICATION ADMIN
-@admin.register(FieldVerification)
+@admin.register(FieldAgent, site=admin_site)
+class FieldAgentAdmin(admin.ModelAdmin):
+    list_display = ('agent_id', 'name', 'is_active_badge', 'assigned_lga')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'agent_id')
+    
+    def is_active_badge(self, obj):
+        return format_html('<span style="color:{};font-weight:bold;">● {}</span>', '#28a745' if obj.is_active else '#dc3545', 'Active' if obj.is_active else 'Inactive')
+    is_active_badge.short_description = 'Status'
+
+@admin.register(FieldVerification, site=admin_site)
 class FieldVerificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'report', 'status', 'is_valid')
+    list_display = ('id', 'report', 'assigned_agent', 'status_badge', 'assigned_at')
     list_filter = ('status', 'is_valid')
+    search_fields = ('report__id', 'assigned_agent__name')
+    readonly_fields = ('assigned_at', 'claimed_at', 'verified_at')
+    
+    def status_badge(self, obj):
+        colors = {'PENDING': '#6c757d', 'ASSIGNED': '#17a2b8', 'IN_PROGRESS': '#ffc107', 'COMPLETED': '#28a745', 'FAILED': '#dc3545'}
+        color = colors.get(obj.status, '#6c757d')
+        return format_html('<span style="color:white;background:{};padding:3px 10px;border-radius:3px;font-weight:bold;">{}</span>', color, obj.status)
+    status_badge.short_description = 'Status'
 
-# ✅ USER PROFILE ADMIN
-@admin.register(UserProfile)
+@admin.register(UserProfile, site=admin_site)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'tier', 'total_points', 'lifetime_points')
-    list_filter = ('tier',)
+    list_display = ('user', 'tier_badge', 'total_points', 'lifetime_points')
+    list_filter = ('tier', 'is_verified')
+    search_fields = ('user__username', 'codename')
+    
+    def tier_badge(self, obj):
+        colors = {'CITIZEN': '#6c757d', 'VOLUNTEER': '#17a2b8', 'INFORMANT': '#fd7e14', 'AGENT': '#28a745'}
+        color = colors.get(obj.tier, '#6c757d')
+        return format_html('<span style="color:white;background:{};padding:3px 10px;border-radius:3px;font-weight:bold;">{}</span>', color, obj.tier)
+    tier_badge.short_description = 'Tier'
 
-# ✅ REWARD CATALOG ADMIN
-@admin.register(RewardCatalog)
+@admin.register(AgentRegistrationRequest, site=admin_site)
+class AgentRegistrationRequestAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'phone_number', 'status_badge', 'submitted_at')
+    list_filter = ('status',)
+    search_fields = ('full_name', 'phone_number')
+    readonly_fields = ('submitted_at', 'approved_at', 'approved_by')
+    actions = ['bulk_approve_agents', 'bulk_reject_agents']
+    
+    def status_badge(self, obj):
+        colors = {'PENDING': '#ffc107', 'APPROVED': '#28a745', 'REJECTED': '#dc3545'}
+        color = colors.get(obj.status, '#6c757d')
+        return format_html('<span style="color:white;background:{};padding:3px 10px;border-radius:3px;font-weight:bold;">{}</span>', color, obj.status)
+    status_badge.short_description = 'Status'
+    
+    @admin.action(description='✅ Approve Selected Agents')
+    def bulk_approve_agents(self, request, queryset):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        count = 0
+        for reg in queryset.filter(status='PENDING'):
+            try:
+                user = User.objects.create_user(username=reg.phone_number, password=reg.phone_number, first_name=reg.full_name, email=reg.email or '')
+                UserProfile.objects.create(user=user, tier='CITIZEN', total_points=0, lifetime_points=0, phone_number=reg.phone_number)
+                agent_count = FieldAgent.objects.count()
+                agent_id = f"AGENT_{agent_count + 1:03d}"
+                FieldAgent.objects.create(agent_id=agent_id, name=reg.full_name, is_active=True)
+                reg.status = 'APPROVED'
+                reg.approved_by = request.user
+                reg.approved_at = timezone.now()
+                reg.save()
+                count += 1
+            except Exception as e:
+                print(f"❌ Error: {e}")
+        self.message_user(request, f'{count} agent(s) approved!', level=admin.messages.SUCCESS)
+    
+    @admin.action(description=' Reject Selected Agents')
+    def bulk_reject_agents(self, request, queryset):
+        count = queryset.filter(status='PENDING').update(status='REJECTED')
+        self.message_user(request, f'{count} agent(s) rejected.')
+
+@admin.register(RewardCatalog, site=admin_site)
 class RewardCatalogAdmin(admin.ModelAdmin):
     list_display = ('title', 'points_required', 'min_tier_required', 'is_active')
-    list_filter = ('is_active', 'min_tier_required')
+    list_filter = ('is_active', 'category')
 
-# ✅ REWARD LEDGER ADMIN
-@admin.register(RewardLedger)
+@admin.register(RewardLedger, site=admin_site)
 class RewardLedgerAdmin(admin.ModelAdmin):
     list_display = ('user_profile', 'transaction_type', 'points', 'created_at')
     list_filter = ('transaction_type',)
 
-# ✅ INTELLIGENCE SUMMARY ADMIN
-@admin.register(IntelligenceSummary)
+@admin.register(IntelligenceSummary, site=admin_site)
 class IntelligenceSummaryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'generated_at')
+    list_display = ('title', 'generated_at', 'report_count')
 
-# ✅ FIELD AGENT ADMIN
-@admin.register(FieldAgent)
-class FieldAgentAdmin(admin.ModelAdmin):
-    list_display = ('agent_id', 'name', 'is_active', 'assigned_lga')
-    list_filter = ('is_active', 'assigned_lga')
-    search_fields = ('name', 'agent_id')
+@admin.register(PatternAlert, site=admin_site)
+class PatternAlertAdmin(admin.ModelAdmin):
+    list_display = ('title', 'severity', 'alert_type', 'acknowledged')
+    list_filter = ('severity', 'acknowledged')
 
-# ✅ AGENT REGISTRATION REQUEST ADMIN (WITH FULL APPROVAL LOGIC)
-@admin.register(AgentRegistrationRequest)
-class AgentRegistrationRequestAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'phone_number', 'lga', 'status', 'submitted_at')
-    list_filter = ('status', 'lga', 'submitted_at')
-    search_fields = ('full_name', 'phone_number')
-    readonly_fields = ('submitted_at', 'approved_at', 'approved_by')
-    
-    actions = ['bulk_approve_agents', 'bulk_reject_agents']
-    
-    @admin.action(description='✅ Approve Selected Agents & Create Accounts')
-    def bulk_approve_agents(self, request, queryset):
-        count = 0
-        errors = 0
-        
-        for registration in queryset.filter(status='PENDING'):
-            try:
-                # 1. Create Django User account
-                user = User.objects.create_user(
-                    username=registration.phone_number,
-                    password=registration.phone_number,  # Temporary password
-                    first_name=registration.full_name,
-                    email=registration.email or '',
-                    is_active=True, 
-                )
-                
-                # 2. Create UserProfile for rewards system
-                UserProfile.objects.create(
-                    user=user,
-                    tier='CITIZEN',
-                    total_points=0,
-                    lifetime_points=0,
-                    phone_number=registration.phone_number,
-                )
-                
-                # 3. Create FieldAgent record with unique AGENT_ID
-                agent_count = FieldAgent.objects.count()
-                agent_id = f"AGENT_{agent_count + 1:03d}"  # AGENT_001, AGENT_002, etc.
-                
-                FieldAgent.objects.create(
-                    agent_id=agent_id,
-                    name=registration.full_name,
-                    is_active=True,
-                    assigned_lga=None,  # Can be assigned manually later
-                )
-                print(f"📱 [SMS HOOK] Ready to send welcome SMS to {registration.phone_number} with Agent ID: {agent_id}")
-                # 4. Mark registration as approved
-                registration.status = 'APPROVED'
-                registration.approved_by = request.user
-                registration.approved_at = timezone.now()
-                registration.save()
-                
-                count += 1
-                
-            except Exception as e:
-                errors += 1
-                print(f"❌ Error approving {registration.phone_number}: {str(e)}")
-        
-        if errors > 0:
-            self.message_user(request, f'{count} agent(s) approved, {errors} failed. Check logs.', level=messages.WARNING)
-        else:
-            self.message_user(request, f'{count} agent(s) approved and accounts created! They can login with their phone number.', level=messages.SUCCESS)
-    
-    @admin.action(description='❌ Reject Selected Agents')
-    def bulk_reject_agents(self, request, queryset):
-        count = queryset.filter(status='PENDING').update(status='REJECTED')
-        self.message_user(request, f'{count} agent(s) rejected.')
+@admin.register(LGA, site=admin_site)
+class LGAAdmin(admin.ModelAdmin):
+    list_display = ('name', 'state', 'population')
+
+# ✅ REGISTER DEFAULT ADMIN TOO (for Users/Groups)
+admin.site.register(apps.get_model('auth', 'Group'))

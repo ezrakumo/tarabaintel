@@ -117,7 +117,7 @@ class AgentRegistrationRequestAdmin(admin.ModelAdmin):
                     is_active=True,
                     assigned_lga=None,  # Can be assigned manually later
                 )
-                
+                print(f"📱 [SMS HOOK] Ready to send welcome SMS to {registration.phone_number} with Agent ID: {agent_id}")
                 # 4. Mark registration as approved
                 registration.status = 'APPROVED'
                 registration.approved_by = request.user

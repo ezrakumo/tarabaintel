@@ -1,70 +1,70 @@
-from django.contrib import admin
+﻿from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
 from rest_framework.routers import DefaultRouter
-from insight.views import AgentRegistrationRequestView, AgentApprovalView
 
-from accounts.views import RegisterView, ProfileView
+# ✅ 1. IMPORT ALL VIEWS
 from insight.views import (
-    intelligence_briefing_dashboard,
-    ReportViewSet,
-    FieldVerificationViewSet,
-    test_ai_engine,
-    rewards_dashboard_api,
-    trigger_weekly_forecast,
-    predictive_hotspots,
-    debug_rewards,
-    RedeemRewardView,
-    agent_performance_analytics  # ✅ ADDED THE MISSING IMPORT HERE!
-)
-from insight.views import (
-    # ... existing imports ...
-    generate_intelligence_briefing,
-    stakeholder_dashboard,
+    AgentRegistrationRequestView, AgentApprovalView,
+    intelligence_briefing_dashboard, ReportViewSet, FieldVerificationViewSet,
+    test_ai_engine, rewards_dashboard_api, trigger_weekly_forecast,
+    predictive_hotspots, debug_rewards, RedeemRewardView,
+    agent_performance_analytics, generate_intelligence_briefing,
+    stakeholder_dashboard
 )
 
-# ✅ 1. SETUP THE ROUTER
+# ✅ 2. SAFE IMPORT FOR ACCOUNTS APP (Prevents crash if app is missing)
+try:
+    from accounts.views import RegisterView, ProfileView
+    HAS_ACCOUNTS_APP = True
+except ImportError:
+    HAS_ACCOUNTS_APP = False
+
+# ✅ 3. SETUP THE ROUTER
 router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
 
 urlpatterns = [
+    # ADMIN
     path('admin/', admin.site.urls),
     
-    # ✅ 2. AUTH ROUTES
-    path('api/auth/register/', RegisterView.as_view(), name='register'),
+    # ✅ 4. AUTH ROUTES (Fixed duplicate names)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/profile/', ProfileView.as_view(), name='profile'),
     
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
-    # ✅ 3. ROUTER URLS
+    # ✅ 5. ROUTER URLS (Handles /api/reports/ and /api/field-verifications/)
     path('api/', include(router.urls)),
     
-    # ✅ 4. OTHER SPECIFIC API ENDPOINTS
+    # ✅ 6. REWARDS & UTILITIES
     path('api/rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
     path('api/rewards/dashboard/', rewards_dashboard_api, name='rewards-dashboard-api'),
+    path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
+    
+    # ✅ 7. AI & PREDICTIONS
     path('api/cron/weekly-forecast/', trigger_weekly_forecast, name='weekly-forecast-cron'),
     path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
-    path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
     path('api/test-ai/', test_ai_engine, name='test-ai'),
     
-    # ✅ 5. ANALYTICS ENDPOINT (The new feature!)
+    # ✅ 8. ANALYTICS & INTELLIGENCE
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
-    
-    # ✅ 6. DASHBOARD URL
-    path('', intelligence_briefing_dashboard, name='dashboard'),
-    # Intelligence Cycle Endpoints
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
-     # Agent Registration & Approval
+    
+    # ✅ 9. AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
     path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
-
-
+    
+    # ✅ 10. MAIN DASHBOARD
+    path('', intelligence_briefing_dashboard, name='dashboard'),
 ]
+
+# ✅ 11. CONDITIONALLY ADD ACCOUNTS ROUTES
+if HAS_ACCOUNTS_APP:
+    urlpatterns += [
+        path('api/auth/register/', RegisterView.as_view(), name='register'),
+        path('api/auth/profile/', ProfileView.as_view(), name='profile'),
+    ]

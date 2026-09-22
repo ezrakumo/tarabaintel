@@ -18,6 +18,9 @@ class LGA(models.Model):
         return self.name
 
 class Report(models.Model):
+    # ✅ EXPLICITLY DEFINE ID AS UUID TO MATCH LIVE DATABASE
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
     STATUS_CHOICES = [
         ('RAW', 'Raw Submission'),
         ('PROCESSED', 'AI Processed'),
@@ -69,7 +72,7 @@ class Report(models.Model):
     def __str__(self):
         return f"Report #{self.id} - {self.issue_category} ({self.status})"
 
-    # ✅ AUTO-ESCALATION LOGIC
+    # ✅ AUTO-ESCALATION LOGIC (ONLY ONE DEFINITION!)
     def save(self, *args, **kwargs):
         critical_keywords = [
             'armed', 'clash', 'gun', 'kidnap', 'bomb', 'suspicious', 
@@ -82,31 +85,6 @@ class Report(models.Model):
             self.auto_flagged_critical = True
             
         super().save(*args, **kwargs)
-
-    class Meta:
-        ordering = ['-submitted_at']
-
-    def __str__(self):
-        return f"Report #{self.id} - {self.issue_category} ({self.status})"
-    
-    # ✅ NEW: AUTO-ESCALATION LOGIC
-    def save(self, *args, **kwargs):
-        # Define critical intelligence keywords (expand this list as needed)
-        critical_keywords = [
-            'armed', 'clash', 'gun', 'kidnap', 'bomb', 'suspicious', 
-            'attack', 'militia', 'herdsmen', 'fulani', 'assault', 'shooting'
-        ]
-        
-        # Combine category and description for scanning
-        text_to_check = f"{self.issue_category} {self.description}".lower()
-        
-        # If any keyword is found, auto-escalate to CRITICAL
-        if any(keyword in text_to_check for keyword in critical_keywords):
-            self.ai_urgency_level = 'CRITICAL'
-            self.auto_flagged_critical = True
-            
-        super().save(*args, **kwargs)
-
 
 class FieldAgent(models.Model):
     agent_id = models.CharField(max_length=50, unique=True)

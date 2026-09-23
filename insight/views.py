@@ -160,6 +160,7 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             return FieldVerification.objects.all().order_by('-assigned_at')
         return FieldVerification.objects.filter(
             assigned_agent__name=user.first_name
+            status__in=['PENDING', 'ASSIGNED', 'IN_PROGRESS']
         ).order_by('-assigned_at')
     
     @action(detail=True, methods=['post'])

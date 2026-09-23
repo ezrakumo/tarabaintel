@@ -303,7 +303,7 @@
         }
 
         function openRedeemModal(id, title, points) {
-            selectedRewardId = id;
+        selectedRewardId = id;
             document.getElementById('redeem-details').innerHTML = `
                 <p class="font-semibold text-white">${title}</p>
                 <p class="text-yellow-400 mt-2">Cost: ${points} points</p>

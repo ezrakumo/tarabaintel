@@ -13,7 +13,7 @@ from insight.views import (
     test_ai_engine, rewards_dashboard_api, trigger_weekly_forecast,
     predictive_hotspots, debug_rewards, RedeemRewardView,
     agent_performance_analytics, generate_intelligence_briefing,
-    stakeholder_dashboard
+    stakeholder_dashboard, trigger_ai_sitrep  # ✅ ADDED HERE FOR CLEANLINESS
 )
 
 # ✅ 2. SAFE IMPORT FOR ACCOUNTS APP
@@ -34,7 +34,7 @@ urlpatterns = [
     
     # ✅ 4. AUTH ROUTES (Includes BOTH paths for Flutter compatibility)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_login_legacy'), # ✅ Flutter app needs this!
+    path('api/token/', TokenObtainPairView.as_view(), name='token_login_legacy'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh_legacy'),
     
@@ -55,6 +55,7 @@ urlpatterns = [
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
+    path('api/intelligence/generate-sitrep/', trigger_ai_sitrep, name='generate-sitrep'), # ✅ PERFECTLY INDENTED
     
     # ✅ 9. AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),

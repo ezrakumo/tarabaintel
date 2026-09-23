@@ -55,10 +55,23 @@ class ReportViewSet(viewsets.ModelViewSet):
         print(f"💾 Report {report.id} saved to database successfully.")
         
         lga_coords = {
-            'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
-            'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
-            'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
-            'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
+            'Jalingo': (8.8833, 11.3667),
+            'Wukari': (7.8714, 9.7833),
+            'Gembu': (6.7333, 11.2667),
+            'Bali': (7.8667, 10.9833),
+            'Takum': (7.2333, 10.4167),
+            'Ibi': (7.4833, 9.7500),
+            'Sardauna': (7.0833, 11.5833),
+            'Karim Lamido': (9.4833, 11.1167),
+            'Donga': (7.4000, 10.5000),
+            'Ussa': (7.6000, 10.8000),
+            'Ardo Kola': (8.5000, 11.8000),
+            'Kurmi': (7.9000, 11.1000),
+            'Lau': (8.6000, 11.0000),
+            'Zing': (8.4000, 11.7000),
+            'Yorro': (8.9000, 11.4000),
+            'Gassol': (7.5000, 10.6000),
+            'Bali': (7.8667, 10.9833),
         }
         
         lat, lon = 8.8833, 11.3667  # Default to Jalingo

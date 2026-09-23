@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ ADDED IMPORT
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reward_models.dart';
 import '../services/reward_service.dart';
 import 'report_submission_screen.dart';
 import 'pending_verifications_screen.dart';
 import 'command_center_screen.dart';
-import 'login_screen.dart'; // ✅ ADDED IMPORT
+import 'login_screen.dart';
+import 'hotspot_map_screen.dart'; // ✅ ADDED IMPORT FOR THE NEW MAP
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -84,14 +85,12 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
     }
   }
 
-  // ✅ SECURE LOGOUT FUNCTION (Moved to class level, outside build method)
   Future<void> _handleLogout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwt_token'); // Wipe the token!
+    await prefs.remove('jwt_token');
     print("🚪 Token deleted. User logged out.");
 
     if (mounted) {
-      // Push to login and remove all previous screens from the stack
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -123,7 +122,6 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
       );
     }
 
-    // ✅ USE FLAT STRUCTURE (NO NESTED PROFILE)
     final totalPoints = _dashboard!.totalPoints;
     final userTier = _dashboard!.userTier;
     final pointsToNext = _dashboard!.pointsToNextTier;
@@ -136,7 +134,6 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
-          // ✅ 1. RED SUBMIT REPORT ICON
           IconButton(
             icon: const Icon(Icons.post_add, color: Colors.redAccent),
             tooltip: 'Submit New Report',
@@ -150,8 +147,6 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
               }
             },
           ),
-
-          // ✅ 2. AMBER PENDING VERIFICATIONS ICON
           IconButton(
             icon: const Icon(Icons.task_alt, color: Colors.amber),
             tooltip: 'Pending Verifications',
@@ -162,8 +157,6 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
               );
             },
           ),
-
-          // ✅ 3. BLUE COMMAND CENTER MAP ICON
           IconButton(
             icon: const Icon(Icons.map, color: Colors.blue),
             tooltip: 'Command Center Map',
@@ -174,15 +167,11 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
               );
             },
           ),
-
-          // ✅ 4. WHITE REFRESH ICON
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Data',
             onPressed: _loadData, 
           ),
-
-          // ✅ 5. RED LOGOUT ICON (NEW!)
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             tooltip: 'Secure Logout',
@@ -239,6 +228,44 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ✅ NEW: LIVE THREAT MAP CARD (Replaces broken _buildDashboardIcon)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => const HotspotMapScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFFDC2626), Color(0xFF991B1B)]),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.red.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.map, color: Colors.white, size: 40),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Live Threat Map', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('View predictive hotspots and active incidents', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, color: Colors.white),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),

@@ -9,7 +9,6 @@ from django.utils import timezone
 from django.shortcuts import render
 from django.db.models import Count, Q
 from django.http import HttpResponse
-from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
@@ -62,18 +61,32 @@ class ReportViewSet(viewsets.ModelViewSet):
             'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
         }
         
-        lat, lon = 8.8833, 11.3667
+        lat, lon = 8.8833, 11.3667  # Default to Jalingo
+        
+        # ✅ TRY TO GET GPS FROM REPORT
         if report.location:
             try:
                 coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
                 lon, lat = float(coords[0]), float(coords[1])
-            except Exception:
-                pass
+                print(f"✅ GPS coordinates extracted: {lat}, {lon}")
+            except Exception as e:
+                print(f"⚠️ Could not parse GPS: {e}")
         elif report.lga and report.lga.name in lga_coords:
+            # ✅ USE LGA DEFAULT COORDINATES
             lat, lon = lga_coords[report.lga.name]
+            if hasattr(report, 'lat') and hasattr(report, 'lon'):
+                report.lat = lat
+                report.lon = lon
             report.location = Point(lon, lat)
-            report.save(update_fields=['location'])
+            
+            update_fields = ['location']
+            if hasattr(report, 'lat') and hasattr(report, 'lon'):
+                update_fields.extend(['lat', 'lon'])
+                
+            report.save(update_fields=update_fields)
+            print(f"✅ Assigned LGA coordinates: {lat}, {lon} for {report.lga.name}")
 
+        # ✅ WEBSOCKET BROADCAST
         channel_layer = get_channel_layer()
         try:
             async_to_sync(channel_layer.group_send)(
@@ -92,6 +105,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
+        # ✅ AI SERVICE CALL
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             response = requests.post(f"{ai_base_url}/analyze", json={
@@ -119,6 +133,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             report.status = 'PROCESSED'
             report.save()
 
+        # ✅ GRADING & REWARDS
         try:
             grade_and_reward_report(report)
             print(f"✅ Rewards processed for report {report.id}")
@@ -131,6 +146,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+        # ✅ AUTO-CREATE VERIFICATION FOR HIGH URGENCY
         if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
             FieldVerification.objects.create(report=report, status='PENDING')
 
@@ -156,32 +172,23 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        
-        # 1. COMMAND CENTER: Superusers see everything
         if user.is_superuser:
             return FieldVerification.objects.all().order_by('-assigned_at')
-        
-        # 2. FIELD AGENT: Only see ACTIVE tasks assigned to them
         return FieldVerification.objects.filter(
-            assigned_agent__name=user.first_name,  # ✅ THE MISSING COMMA WAS HERE!
+            assigned_agent__name=user.first_name,
             status__in=['PENDING', 'ASSIGNED', 'IN_PROGRESS']
         ).order_by('-assigned_at')
     
     @action(detail=True, methods=['post'])
     def claim(self, request, pk=None):
         verification = self.get_object()
-        
         try:
             agent = FieldAgent.objects.get(name=request.user.first_name, is_active=True)
         except FieldAgent.DoesNotExist:
-            return Response({
-                'error': 'No field agent record found for your account. Contact admin.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No field agent record found for your account.'}, status=status.HTTP_404_NOT_FOUND)
         
         if verification.assigned_agent and verification.assigned_agent.agent_id != agent.agent_id:
-            return Response({
-                'error': 'This task is assigned to another agent.'
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'This task is assigned to another agent.'}, status=status.HTTP_403_FORBIDDEN)
         
         verification.assigned_agent = agent
         verification.status = 'IN_PROGRESS'
@@ -192,26 +199,18 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             verification.report.status = 'PENDING_VERIFICATION'
             verification.report.save()
         
-        return Response({
-            'message': f'Claimed by {agent.agent_id}',
-            'agent_id': agent.agent_id
-        })
+        return Response({'message': f'Claimed by {agent.agent_id}', 'agent_id': agent.agent_id})
     
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         verification = self.get_object()
-        
         try:
             agent = FieldAgent.objects.get(name=request.user.first_name, is_active=True)
         except FieldAgent.DoesNotExist:
-            return Response({
-                'error': 'No field agent record found for your account.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No field agent record found for your account.'}, status=status.HTTP_404_NOT_FOUND)
         
         if verification.assigned_agent and verification.assigned_agent.agent_id != agent.agent_id:
-            return Response({
-                'error': 'Only the assigned agent can complete this task.'
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Only the assigned agent can complete this task.'}, status=status.HTTP_403_FORBIDDEN)
         
         is_valid = request.data.get('is_valid', False)
         notes = request.data.get('notes', '')
@@ -244,10 +243,7 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 print(f"⚠️ Reward error: {e}")
         
-        return Response({
-            'message': 'Verification completed successfully',
-            'status': verification.report.status
-        })
+        return Response({'message': 'Verification completed successfully', 'status': verification.report.status})
 
 
 @staff_member_required
@@ -289,7 +285,7 @@ def test_ai_engine(request):
         return Response({"status": "SUCCESS", "summary": summary.title if summary else "No Data"})
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
-    
+
 
 def rewards_dashboard_page(request):
     return render(request, 'rewards_dashboard.html')
@@ -304,14 +300,7 @@ def rewards_dashboard_api(request):
             defaults={'total_points': 0, 'lifetime_points': 0, 'tier': 'CITIZEN'}
         )
         
-        print(f"🔍 Dashboard API called for user: {request.user.username}")
-        print(f"📊 Profile total_points: {profile.total_points}")
-        
-        available_rewards = RewardCatalog.objects.filter(
-            is_active=True, 
-            points_required__lte=profile.total_points
-        )
-        
+        available_rewards = RewardCatalog.objects.filter(is_active=True, points_required__lte=profile.total_points)
         recent_tx = RewardLedger.objects.filter(user_profile=profile).order_by('-created_at')[:10]
         
         tier_order = ['CITIZEN', 'VOLUNTEER', 'INFORMANT', 'AGENT']
@@ -320,28 +309,14 @@ def rewards_dashboard_api(request):
         points_to_next = (current_idx + 1) * 100 - profile.total_points if next_tier else 0
         
         return Response({
-            'status': 'success',
-            'userTier': profile.tier,
-            'totalPoints': profile.total_points,
+            'status': 'success', 'userTier': profile.tier, 'totalPoints': profile.total_points,
             'lifetimePoints': profile.lifetime_points,
-            'affordableRewards': [
-                {
-                    'id': r.id, 'title': r.title, 'description': r.description or '',
-                    'pointsRequired': r.points_required,
-                } for r in available_rewards
-            ],
-            'recentTransactions': [
-                {
-                    'type': tx.transaction_type, 'points': tx.points,
-                    'description': tx.description, 'date': tx.created_at.isoformat() if tx.created_at else None,
-                } for tx in recent_tx
-            ],
-            'nextTier': next_tier,
-            'pointsToNextTier': max(0, points_to_next),
+            'affordableRewards': [{'id': r.id, 'title': r.title, 'description': r.description or '', 'pointsRequired': r.points_required} for r in available_rewards],
+            'recentTransactions': [{'type': tx.transaction_type, 'points': tx.points, 'description': tx.description, 'date': tx.created_at.isoformat() if tx.created_at else None} for tx in recent_tx],
+            'nextTier': next_tier, 'pointsToNextTier': max(0, points_to_next),
         })
     except Exception as e:
         print(f"❌ DASHBOARD API ERROR: {e}")
-        print(traceback.format_exc())
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
 
@@ -362,28 +337,41 @@ class RedeemRewardView(APIView):
         profile.save()
         
         RewardLedger.objects.create(
-            user_profile=profile, 
-            transaction_type='REDEEMED_CASH', # Updated to match your TRANSACTION_TYPES
-            points=-reward.points_required, 
-            description=f"Redeemed reward: {reward.title}"
+            user_profile=profile, transaction_type='REDEEMED_CASH',
+            points=-reward.points_required, description=f"Redeemed reward: {reward.title}"
         )
-        return Response({
-            "message": f"Successfully redeemed {reward.title}!", 
-            "new_balance": profile.total_points
-        }, status=status.HTTP_201_CREATED)
+        return Response({"message": f"Successfully redeemed {reward.title}!", "new_balance": profile.total_points}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def predictive_hotspots(request):
-    days = int(request.GET.get('days', 30))
+    """Returns high-priority reports with coordinates for the map."""
     try:
-        predictor = HotspotPredictor(eps=0.02, min_samples=2) 
-        hotspots = predictor.generate_hotspots(days=days)
-        return Response({
-            'status': 'success', 'days_analyzed': days,
-            'hotspot_count': len(hotspots), 'hotspots': hotspots
-        })
+        reports = Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'])
+        hotspots = []
+        
+        for r in reports:
+            lat, lon = None, None
+            # Try explicit fields first
+            if hasattr(r, 'lat') and hasattr(r, 'lon') and r.lat is not None and r.lon is not None:
+                lat, lon = r.lat, r.lon
+            # Fallback to PointField
+            elif r.location:
+                try:
+                    coords = r.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
+                    lon, lat = float(coords[0]), float(coords[1])
+                except Exception:
+                    pass
+            
+            if lat is not None and lon is not None:
+                hotspots.append({
+                    'lat': lat, 'lon': lon,
+                    'category': r.issue_category or 'Unknown',
+                    'severity': r.ai_urgency_level,
+                })
+        
+        return Response({'status': 'success', 'hotspot_count': len(hotspots), 'hotspots': hotspots})
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
@@ -413,10 +401,8 @@ def debug_rewards(request):
     except ValueError:
         user_tier_idx = 0
     available_tiers = tier_order[:user_tier_idx + 1]
-    filtered_rewards = RewardCatalog.objects.filter(
-        is_active=True, min_tier_required__in=available_tiers,
-        points_required__lte=user_profile.total_points
-    )
+    filtered_rewards = RewardCatalog.objects.filter(is_active=True, min_tier_required__in=available_tiers, points_required__lte=user_profile.total_points)
+    
     return Response({
         "user_tier": user_profile.tier, "user_points": user_profile.total_points,
         "available_tiers": available_tiers, "total_active_rewards": all_rewards.count(),
@@ -431,21 +417,13 @@ def debug_rewards(request):
 def agent_performance_analytics(request):
     try:
         today = timezone.now().date()
-        trend_data = []
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            count = Report.objects.filter(submitted_at__date=day, submitted_by=request.user).count()
-            trend_data.append({'date': day.strftime('%b %d'), 'count': count})
-
-        categories = Report.objects.filter(submitted_by=request.user).values('issue_category').annotate(total=Count('id')).order_by('-total')
-        category_data = [{'category': item['issue_category'] or 'Unknown', 'count': item['total']} for item in categories]
-
-        total_reports = Report.objects.filter(submitted_by=request.user).count()
-        profile = UserProfile.objects.get(user=request.user)
-
+        trend_data = [{'date': (today - timedelta(days=i)).strftime('%b %d'), 'count': Report.objects.filter(submitted_at__date=(today - timedelta(days=i)), submitted_by=request.user).count()} for i in range(6, -1, -1)]
+        categories = [{'category': item['issue_category'] or 'Unknown', 'count': item['total']} for item in Report.objects.filter(submitted_by=request.user).values('issue_category').annotate(total=Count('id')).order_by('-total')]
+        
         return Response({
-            'status': 'success', 'total_reports': total_reports,
-            'total_points': profile.total_points, 'trend': trend_data, 'categories': category_data
+            'status': 'success', 'total_reports': Report.objects.filter(submitted_by=request.user).count(),
+            'total_points': UserProfile.objects.get(user=request.user).total_points, 
+            'trend': trend_data, 'categories': categories
         })
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
@@ -460,11 +438,7 @@ def generate_intelligence_briefing(request):
     if report_type == 'daily':
         briefing = engine.generate_daily_sitrep()
     elif report_type == 'patterns':
-        briefing = {
-            'report_type': 'PATTERN_ANALYSIS',
-            'generated_at': timezone.now().isoformat(),
-            'patterns': engine.detect_patterns(days=7)
-        }
+        briefing = {'report_type': 'PATTERN_ANALYSIS', 'generated_at': timezone.now().isoformat(), 'patterns': engine.detect_patterns(days=7)}
     else:
         return Response({'error': 'Invalid report type'}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -474,28 +448,15 @@ def generate_intelligence_briefing(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def stakeholder_dashboard(request):
-    total_reports_24h = Report.objects.filter(submitted_at__gte=timezone.now() - timedelta(hours=24)).count()
-    critical_active = Report.objects.filter(ai_urgency_level='CRITICAL', status__in=['RAW', 'PROCESSED']).count()
-    verification_pending = FieldVerification.objects.filter(status='PENDING').count()
-    active_agents = FieldAgent.objects.filter(is_active=True).count()
-    
-    top_threats = Report.objects.filter(
-        ai_urgency_level__in=['CRITICAL', 'HIGH'], status__in=['RAW', 'PROCESSED']
-    ).order_by('-submitted_at')[:5]
-    
     return Response({
         'status': 'success',
         'kpis': {
-            'reports_24h': total_reports_24h, 'critical_active': critical_active,
-            'pending_verifications': verification_pending, 'active_agents': active_agents,
+            'reports_24h': Report.objects.filter(submitted_at__gte=timezone.now() - timedelta(hours=24)).count(),
+            'critical_active': Report.objects.filter(ai_urgency_level='CRITICAL', status__in=['RAW', 'PROCESSED']).count(),
+            'pending_verifications': FieldVerification.objects.filter(status='PENDING').count(),
+            'active_agents': FieldAgent.objects.filter(is_active=True).count(),
         },
-        'top_threats': [
-            {
-                'id': r.id, 'category': r.issue_category, 'urgency': r.ai_urgency_level,
-                'location': r.lga.name if r.lga else 'Unknown', 'submitted': r.submitted_at.isoformat(),
-                'confidence': r.ai_confidence_score
-            } for r in top_threats
-        ],
+        'top_threats': [{'id': r.id, 'category': r.issue_category, 'urgency': r.ai_urgency_level, 'location': r.lga.name if r.lga else 'Unknown', 'submitted': r.submitted_at.isoformat(), 'confidence': r.ai_confidence_score} for r in Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'], status__in=['RAW', 'PROCESSED']).order_by('-submitted_at')[:5]],
         'generated_at': timezone.now().isoformat()
     })
 
@@ -509,13 +470,8 @@ class AgentRegistrationRequestView(APIView):
             if serializer.is_valid():
                 if User.objects.filter(username=serializer.validated_data['phone_number']).exists():
                     return Response({'error': 'Phone number already registered'}, status=status.HTTP_400_BAD_REQUEST)
-                
                 serializer.save()
-                return Response({
-                    'status': 'success',
-                    'message': 'Registration request submitted. Awaiting admin approval.'
-                }, status=status.HTTP_201_CREATED)
-            
+                return Response({'status': 'success', 'message': 'Registration request submitted. Awaiting admin approval.'}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print("❌ CRITICAL ERROR IN AGENT REGISTRATION:")
@@ -537,35 +493,19 @@ class AgentApprovalView(APIView):
             return Response({'error': 'Registration not found'}, status=status.HTTP_404_NOT_FOUND)
         
         if action == 'approve':
-            user = User.objects.create_user(
-                username=registration.phone_number,
-                password=registration.phone_number,
-                first_name=registration.full_name,
-            )
-            
-            UserProfile.objects.create(
-                user=user, tier='CITIZEN', total_points=0, lifetime_points=0
-            )
+            user = User.objects.create_user(username=registration.phone_number, password=registration.phone_number, first_name=registration.full_name)
+            UserProfile.objects.create(user=user, tier='CITIZEN', total_points=0, lifetime_points=0)
             
             agent_count = FieldAgent.objects.count()
             agent_id = f"AGENT_{agent_count + 1:03d}"
-            
-            FieldAgent.objects.create(
-                name=registration.full_name, # Removed 'user' and 'lga' and 'phone_number' as they aren't in the model
-                agent_id=agent_id,
-                is_active=True,
-            )
+            FieldAgent.objects.create(name=registration.full_name, agent_id=agent_id, is_active=True)
             
             registration.status = 'APPROVED'
             registration.approved_by = request.user
             registration.approved_at = timezone.now()
             registration.save()
             
-            return Response({
-                'status': 'success', 'message': f'Agent {agent_id} approved successfully',
-                'agent_id': agent_id, 'username': registration.phone_number,
-                'temporary_password': registration.phone_number
-            })
+            return Response({'status': 'success', 'message': f'Agent {agent_id} approved successfully', 'agent_id': agent_id, 'username': registration.phone_number, 'temporary_password': registration.phone_number})
         
         elif action == 'reject':
             registration.status = 'REJECTED'

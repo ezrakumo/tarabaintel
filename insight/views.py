@@ -356,20 +356,20 @@ class RedeemRewardView(APIView):
         return Response({"message": f"Successfully redeemed {reward.title}!", "new_balance": profile.total_points}, status=status.HTTP_201_CREATED)
 
 
+import random # Make sure 'import random' is at the very top of your views.py file!
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def predictive_hotspots(request):
-    """Returns high-priority reports with coordinates for the map."""
+    """Returns high-priority reports with coordinates, adding slight jitter to prevent stacking."""
     try:
         reports = Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'])
         hotspots = []
         
         for r in reports:
             lat, lon = None, None
-            # Try explicit fields first
             if hasattr(r, 'lat') and hasattr(r, 'lon') and r.lat is not None and r.lon is not None:
                 lat, lon = r.lat, r.lon
-            # Fallback to PointField
             elif r.location:
                 try:
                     coords = r.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
@@ -378,8 +378,13 @@ def predictive_hotspots(request):
                     pass
             
             if lat is not None and lon is not None:
+                # ✅ ADD TINY JITTER (0.05 degrees is about 5km) to spread out stacked pins
+                jitter_lat = random.uniform(-0.05, 0.05)
+                jitter_lon = random.uniform(-0.05, 0.05)
+                
                 hotspots.append({
-                    'lat': lat, 'lon': lon,
+                    'lat': lat + jitter_lat, 
+                    'lon': lon + jitter_lon,
                     'category': r.issue_category or 'Unknown',
                     'severity': r.ai_urgency_level,
                 })

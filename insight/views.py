@@ -23,6 +23,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from .services.sitrep_generator import generate_daily_sitrep
 
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
@@ -41,6 +42,7 @@ from insight.services.intelligence_service import IntelligenceGenerationService
 from insight.services.quality_grader import grade_and_reward_report
 from .services.hotspot_predictor import HotspotPredictor
 from .services.intelligence_cycle import IntelligenceCycleEngine
+from .services.sitrep_generator import generate_daily_sitrep
 
 User = get_user_model()
 
@@ -477,6 +479,20 @@ def stakeholder_dashboard(request):
         'top_threats': [{'id': r.id, 'category': r.issue_category, 'urgency': r.ai_urgency_level, 'location': r.lga.name if r.lga else 'Unknown', 'submitted': r.submitted_at.isoformat(), 'confidence': r.ai_confidence_score} for r in Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'], status__in=['RAW', 'PROCESSED']).order_by('-submitted_at')[:5]],
         'generated_at': timezone.now().isoformat()
     })
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def trigger_ai_sitrep(request):
+    """Manually trigger the AI to write a daily briefing."""
+    # Optional: Only allow superusers to trigger this
+    if not request.user.is_superuser:
+        return Response({"error": "Admin access only."}, status=403)
+        
+    summary = generate_daily_sitrep()
+    
+    if summary:
+        return Response({"status": "success", "message": "SITREP Generated!", "summary_id": summary.id})
+    else:
+        return Response({"status": "error", "message": "AI failed to generate report."}, status=500)
 
 
 class AgentRegistrationRequestView(APIView):
@@ -532,3 +548,29 @@ class AgentApprovalView(APIView):
             return Response({'status': 'rejected', 'message': 'Registration request rejected'})
         
         return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=status.HTTP_400_BAD_REQUEST)
+# ==========================================
+# ✅ AI SITREP GENERATION ENDPOINT
+# ==========================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def trigger_ai_sitrep(request):
+    """Manually trigger the AI to write a daily briefing."""
+    # Only allow superusers to trigger this
+    if not request.user.is_superuser:
+        return Response({"error": "Admin access only."}, status=status.HTTP_403_FORBIDDEN)
+        
+    summary = generate_daily_sitrep()
+    
+    if summary:
+        return Response({
+            "status": "success", 
+            "message": "SITREP Generated Successfully!", 
+            "summary_id": summary.id,
+            "content": summary.content if hasattr(summary, 'content') else "Summary saved to database."
+        })
+    else:
+        return Response({
+            "status": "error", 
+            "message": "AI failed to generate report. Check logs."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+    

@@ -1,6 +1,5 @@
 ﻿from django.contrib import admin
 from django.urls import path, include
-from insight.views import test_bare_metal
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -14,7 +13,7 @@ from insight.views import (
     test_ai_engine, rewards_dashboard_api, trigger_weekly_forecast,
     predictive_hotspots, debug_rewards, RedeemRewardView,
     agent_performance_analytics, generate_intelligence_briefing,
-    stakeholder_dashboard, trigger_ai_sitrep  # ✅ ADDED HERE FOR CLEANLINESS
+    stakeholder_dashboard, trigger_ai_sitrep, test_bare_metal # ✅ ADDED test_bare_metal
 )
 
 # ✅ 2. SAFE IMPORT FOR ACCOUNTS APP
@@ -33,7 +32,7 @@ urlpatterns = [
     # ADMIN
     path('admin/', admin.site.urls),
     
-    # ✅ 4. AUTH ROUTES (Includes BOTH paths for Flutter compatibility)
+    # ✅ 4. AUTH ROUTES
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_login_legacy'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -56,18 +55,20 @@ urlpatterns = [
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
-    path('api/intelligence/generate-sitrep/', trigger_ai_sitrep, name='generate-sitrep'), # ✅ PERFECTLY INDENTED
+    path('api/intelligence/generate-sitrep/', trigger_ai_sitrep, name='generate-sitrep'),
     
     # ✅ 9. AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
     path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
-    path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
     
     # ✅ 10. MAIN DASHBOARD
     path('', intelligence_briefing_dashboard, name='dashboard'),
+
+    # ✅ 11. BARE METAL TEST
+    path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
 ]
 
-# ✅ 11. CONDITIONALLY ADD ACCOUNTS ROUTES
+# ✅ 12. CONDITIONALLY ADD ACCOUNTS ROUTES
 if HAS_ACCOUNTS_APP:
     urlpatterns += [
         path('api/auth/register/', RegisterView.as_view(), name='register'),

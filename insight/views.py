@@ -569,31 +569,42 @@ class AgentApprovalView(APIView):
             return Response({'status': 'rejected', 'message': 'Registration request rejected'})
         
         return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=status.HTTP_400_BAD_REQUEST)
+
 # ==========================================
-# ✅ AI SITREP GENERATION ENDPOINT
+# ✅ AI SITREP GENERATION ENDPOINT (BULLETPROOF)
 # ==========================================
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny]) # ✅ Allow access so we can test without logging in
 def trigger_ai_sitrep(request):
-    """Manually trigger the AI to write a daily briefing."""
-    # Only allow superusers to trigger this
-    if not request.user.is_superuser:
-        return Response({"error": "Admin access only."}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        # ✅ SAFE PERMISSION CHECK (Inside the try block)
+        if not request.user.is_authenticated or not request.user.is_superuser:
+            return Response({"error": "Admin access only. Please log in."}, status=status.HTTP_403_FORBIDDEN)
+
+        from .services.sitrep_generator import generate_daily_sitrep
+        summary = generate_daily_sitrep()
         
-    summary = generate_daily_sitrep()
-    
-    if summary:
-        return Response({
-            "status": "success", 
-            "message": "SITREP Generated Successfully!", 
-            "summary_id": summary.id,
-            "content": summary.content if hasattr(summary, 'content') else "Summary saved to database."
-        })
-    else:
+        if summary:
+            return Response({
+                "status": "success", 
+                "message": "SITREP Generated Successfully!", 
+                "summary_id": summary.id,
+                "content": summary.content if hasattr(summary, 'content') else "Summary saved."
+            })
+        else:
+            return Response({
+                "status": "error", 
+                "message": "generate_daily_sitrep() returned None. Check Render logs for '⚠️' or '❌'."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        import traceback
         return Response({
             "status": "error", 
-            "message": "AI failed to generate report. Check logs."
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+            "message": "CRASH!",
+            "details": str(e),
+            "traceback": traceback.format_exc()
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 # ==========================================
 # ✅ BARE METAL TEST ENDPOINT

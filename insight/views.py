@@ -482,17 +482,37 @@ def stakeholder_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def trigger_ai_sitrep(request):
-    """Manually trigger the AI to write a daily briefing."""
-    # Optional: Only allow superusers to trigger this
+    """Manually trigger the AI to write a daily briefing (DEBUG MODE)."""
     if not request.user.is_superuser:
-        return Response({"error": "Admin access only."}, status=403)
+        return Response({"error": "Admin access only."}, status=status.HTTP_403_FORBIDDEN)
         
-    summary = generate_daily_sitrep()
-    
-    if summary:
-        return Response({"status": "success", "message": "SITREP Generated!", "summary_id": summary.id})
-    else:
-        return Response({"status": "error", "message": "AI failed to generate report."}, status=500)
+    try:
+        # Import here to catch any import errors immediately
+        from .services.sitrep_generator import generate_daily_sitrep
+        summary = generate_daily_sitrep()
+        
+        if summary:
+            return Response({
+                "status": "success", 
+                "message": "SITREP Generated Successfully!", 
+                "summary_id": summary.id,
+                "content": summary.content if hasattr(summary, 'content') else "Summary saved."
+            })
+        else:
+            return Response({
+                "status": "error", 
+                "message": "generate_daily_sitrep() returned None. Check Render logs for '⚠️' or '❌'."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        # THIS WILL SHOW THE EXACT ERROR ON YOUR SCREEN
+        import traceback
+        return Response({
+            "status": "error", 
+            "message": "CRASH!",
+            "details": str(e),
+            "traceback": traceback.format_exc()
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AgentRegistrationRequestView(APIView):

@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/reward_service.dart';
 import '../services/offline_db.dart';
+import 'package:flutter/foundation.dart';
 
 class ReportSubmissionScreen extends StatefulWidget {
   const ReportSubmissionScreen({Key? key}) : super(key: key);
@@ -55,36 +56,47 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
   }
 
   Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      // Stop recording
-      final path = await _audioRecorder.stop();
-      setState(() {
-        _isRecording = false;
-        _audioFilePath = path;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Voice note recorded successfully!'), backgroundColor: Colors.green),
-      );
-    } else {
-      // Start recording
-      final hasPermission = await _audioRecorder.hasPermission();
-      if (!hasPermission) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Microphone permission denied'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      
-      final dir = await getApplicationDocumentsDirectory();
-      final filePath = '${dir.path}/report_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await _audioRecorder.start(const RecordConfig(), path: filePath);
-      setState(() {
-        _isRecording = true;
-        _audioFilePath = null;
-      });
-    }
+  // ✅ WEB SAFETY CHECK
+  if (kIsWeb) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⚠️ Voice recording is only supported on Android/iOS devices.'), 
+        backgroundColor: Colors.orange
+      ),
+    );
+    return;
   }
+
+  if (_isRecording) {
+    // Stop recording
+    final path = await _audioRecorder.stop();
+    setState(() {
+      _isRecording = false;
+      _audioFilePath = path;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✅ Voice note recorded successfully!'), backgroundColor: Colors.green),
+    );
+  } else {
+    // Start recording
+    final hasPermission = await _audioRecorder.hasPermission();
+    if (!hasPermission) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Microphone permission denied'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = '${dir.path}/report_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    
+    await _audioRecorder.start(const RecordConfig(), path: filePath);
+    setState(() {
+      _isRecording = true;
+      _audioFilePath = null;
+    });
+  }
+}
 
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;

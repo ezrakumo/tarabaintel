@@ -66,7 +66,8 @@ class ReportViewSet(viewsets.ModelViewSet):
         print(f"💾 Report {report.id} saved to database successfully.")
         
         # ✅ 3. PROCESS AUDIO IF UPLOADED
-        if audio_base64:
+                # ✅ 3. PROCESS AUDIO IF UPLOADED (Safe Check)
+        if audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
             try:
                 print("🎤 Audio base64 detected. Decoding and transcribing...")
                 
@@ -78,6 +79,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                     f.write(audio_data)
                 
                 # Transcribe and translate using Whisper
+                from .services.audio_transcriber import transcribe_and_translate_audio
                 translated_text = transcribe_and_translate_audio(temp_audio_path)
                 
                 if not translated_text.startswith("Error:"):

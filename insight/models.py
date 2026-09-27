@@ -133,11 +133,12 @@ class FieldVerification(models.Model):
 
 class IntelligenceSummary(models.Model):
     title = models.CharField(max_length=200)
+    content = models.TextField(blank=True, null=True)  # ✅ CRITICAL: Must exist
     executive_briefing = models.TextField()
     key_findings = models.JSONField(default=list)
     emerging_threats = models.JSONField(default=list)
     recommendations = models.JSONField(default=list)
-    statistics = models.JSONField(default=dict)
+    statistics = models.JSONField(default=dict, blank=True, null=True) # ✅ CRITICAL: Must exist
     generated_at = models.DateTimeField(auto_now_add=True)
     report_count = models.IntegerField(default=0)
 

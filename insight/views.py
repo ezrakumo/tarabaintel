@@ -25,6 +25,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .services.sitrep_generator import generate_daily_sitrep
 
+
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
     IntelligenceSummary, PatternAlert, RewardCatalog, 
@@ -592,5 +593,17 @@ def trigger_ai_sitrep(request):
         return Response({
             "status": "error", 
             "message": "AI failed to generate report. Check logs."
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+        
+# ==========================================
+# ✅ BARE METAL TEST ENDPOINT
+# ==========================================
+@api_view(['GET'])
+@permission_classes([AllowAny]) # ✅ NO PERMISSIONS REQUIRED
+def test_bare_metal(request):
+    print("DEBUG: Bare metal endpoint called!")
+    return Response({
+        "status": "success",
+        "message": "Hello from Render! The server is alive and routing is working."
+    }) 
     

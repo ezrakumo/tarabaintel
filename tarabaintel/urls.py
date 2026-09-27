@@ -1,5 +1,6 @@
 ﻿from django.contrib import admin
 from django.urls import path, include
+from insight.views import test_bare_metal
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -60,6 +61,7 @@ urlpatterns = [
     # ✅ 9. AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
     path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
+    path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
     
     # ✅ 10. MAIN DASHBOARD
     path('', intelligence_briefing_dashboard, name='dashboard'),

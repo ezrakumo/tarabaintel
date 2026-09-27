@@ -131,22 +131,20 @@ class FieldVerification(models.Model):
         self.report.save()
 
 
+
 class IntelligenceSummary(models.Model):
-    title = models.CharField(max_length=200)
-    content = models.TextField(blank=True, null=True)  # ✅ CRITICAL: Must exist
-    executive_briefing = models.TextField()
-    key_findings = models.JSONField(default=list)
-    emerging_threats = models.JSONField(default=list)
-    recommendations = models.JSONField(default=list)
-    statistics = models.JSONField(default=dict, blank=True, null=True) # ✅ CRITICAL: Must exist
+    title = models.CharField(max_length=255)
+    content = models.TextField(blank=True, null=True)
     generated_at = models.DateTimeField(auto_now_add=True)
-    report_count = models.IntegerField(default=0)
+    statistics = models.JSONField(default=dict, blank=True, null=True)
 
     class Meta:
-        ordering = ['-generated_at']
+        verbose_name_plural = "Intelligence Summaries"
 
     def __str__(self):
         return self.title
+
+    
 
 
 class PatternAlert(models.Model):

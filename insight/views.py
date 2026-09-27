@@ -53,42 +53,66 @@ class ReportViewSet(viewsets.ModelViewSet):
     serializer_class = ReportSerializer
 
     def perform_create(self, serializer):
+        import base64
+        from .services.audio_transcriber import transcribe_and_translate_audio
+
         print(f"🚀 Starting report creation for user: {self.request.user}")
+        
+        # ✅ 1. EXTRACT AUDIO BASE64 BEFORE SAVING
+        audio_base64 = self.request.data.get('audio_base64')
+        
+        # ✅ 2. SAVE THE REPORT
         report = serializer.save(status='RAW', submitted_by=self.request.user)
         print(f"💾 Report {report.id} saved to database successfully.")
         
+        # ✅ 3. PROCESS AUDIO IF UPLOADED
+        if audio_base64:
+            try:
+                print("🎤 Audio base64 detected. Decoding and transcribing...")
+                
+                # Decode base64 to a temporary file
+                audio_data = base64.b64decode(audio_base64)
+                temp_audio_path = f"/tmp/report_audio_{report.id}.m4a"
+                
+                with open(temp_audio_path, "wb") as f:
+                    f.write(audio_data)
+                
+                # Transcribe and translate using Whisper
+                translated_text = transcribe_and_translate_audio(temp_audio_path)
+                
+                if not translated_text.startswith("Error:"):
+                    # Append the translated voice note to the description
+                    original_desc = report.description or "No text provided"
+                    report.description = f"[VOICE NOTE TRANSLATION]: {translated_text}\n\n[ORIGINAL TEXT]: {original_desc}"
+                    report.save(update_fields=['description'])
+                    print("✅ Voice note successfully translated and appended to report!")
+                else:
+                    print(f"⚠️ {translated_text}")
+                    
+                # Clean up temp file to save server space
+                if os.path.exists(temp_audio_path):
+                    os.remove(temp_audio_path)
+                    
+            except Exception as audio_error:
+                print(f"❌ Failed to process audio: {audio_error}")
+
+        # ✅ 4. LGA COORDINATES DATABASE
         lga_coords = {
-            'Jalingo': (8.8833, 11.3667),
-            'Wukari': (7.8714, 9.7833),
-            'Gembu': (6.7333, 11.2667),
-            'Bali': (7.8667, 10.9833),
-            'Takum': (7.2333, 10.4167),
-            'Ibi': (7.4833, 9.7500),
-            'Sardauna': (7.0833, 11.5833),
-            'Karim Lamido': (9.4833, 11.1167),
-            'Donga': (7.4000, 10.5000),
-            'Ussa': (7.6000, 10.8000),
-            'Ardo Kola': (8.5000, 11.8000),
-            'Kurmi': (7.9000, 11.1000),
-            'Lau': (8.6000, 11.0000),
-            'Zing': (8.4000, 11.7000),
-            'Yorro': (8.9000, 11.4000),
-            'Gassol': (7.5000, 10.6000),
-            'Bali': (7.8667, 10.9833),
+            'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
+            'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
+            'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
+            'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
         }
         
         lat, lon = 8.8833, 11.3667  # Default to Jalingo
         
-        # ✅ TRY TO GET GPS FROM REPORT
         if report.location:
             try:
                 coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
                 lon, lat = float(coords[0]), float(coords[1])
-                print(f"✅ GPS coordinates extracted: {lat}, {lon}")
             except Exception as e:
                 print(f"⚠️ Could not parse GPS: {e}")
         elif report.lga and report.lga.name in lga_coords:
-            # ✅ USE LGA DEFAULT COORDINATES
             lat, lon = lga_coords[report.lga.name]
             if hasattr(report, 'lat') and hasattr(report, 'lon'):
                 report.lat = lat
@@ -98,11 +122,11 @@ class ReportViewSet(viewsets.ModelViewSet):
             update_fields = ['location']
             if hasattr(report, 'lat') and hasattr(report, 'lon'):
                 update_fields.extend(['lat', 'lon'])
-                
             report.save(update_fields=update_fields)
-            print(f"✅ Assigned LGA coordinates: {lat}, {lon} for {report.lga.name}")
 
-        # ✅ WEBSOCKET BROADCAST
+        # ✅ 5. WEBSOCKET BROADCAST
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
         channel_layer = get_channel_layer()
         try:
             async_to_sync(channel_layer.group_send)(
@@ -121,7 +145,8 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # ✅ AI SERVICE CALL
+        # ✅ 6. AI SERVICE CALL
+        import requests
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             response = requests.post(f"{ai_base_url}/analyze", json={
@@ -140,8 +165,6 @@ class ReportViewSet(viewsets.ModelViewSet):
                 report.ai_extracted_entities = ai_data.get('extracted_entities', {})
                 report.status = 'PROCESSED'
                 report.save()
-            else:
-                raise Exception("AI returned non-200 status")
         except Exception as e:
             print(f"⚠️ AI Service unavailable ({e}). Applying default grading.")
             report.ai_urgency_level = 'MODERATE'
@@ -149,21 +172,16 @@ class ReportViewSet(viewsets.ModelViewSet):
             report.status = 'PROCESSED'
             report.save()
 
-        # ✅ GRADING & REWARDS
+        # ✅ 7. GRADING & REWARDS
+        from insight.services.quality_grader import grade_and_reward_report
         try:
             grade_and_reward_report(report)
-            print(f"✅ Rewards processed for report {report.id}")
         except Exception as grade_error:
             print(f"❌ Grading failed: {grade_error}")
-            try:
-                profile = UserProfile.objects.get(user=report.submitted_by)
-                profile.total_points += 1
-                profile.save()
-            except Exception:
-                pass
 
-        # ✅ AUTO-CREATE VERIFICATION FOR HIGH URGENCY
+        # ✅ 8. AUTO-CREATE VERIFICATION FOR HIGH URGENCY
         if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
+            from .models import FieldVerification
             FieldVerification.objects.create(report=report, status='PENDING')
 
     @action(detail=False, methods=['get'])

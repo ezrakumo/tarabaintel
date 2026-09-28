@@ -21,9 +21,9 @@ USE_X_FORWARDED_HOST = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# ✅ 3. INSTALLED APPS (Jazzmin MUST be first)
+
 INSTALLED_APPS = [
-    'jazzmin',
+    "unfold",  # ✅ MUST BE BEFORE admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -162,69 +162,94 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
-
-# ==========================================
-# ✅ 13. JAZZMIN ADMIN THEME CONFIGURATION
-# ==========================================
-JAZZMIN_SETTINGS = {
-    "site_title": "TarabaInsight Command",
-    "site_header": "TarabaInsight Intelligence",
-    "site_brand": "TarabaInsight",
-    "welcome_sign": "Welcome to the National Security Intelligence Command Center",
-    "copyright": "TarabaInsight AI - 2026",
-    "search_model": ["auth.User", "insight.Report"],
-    "topmenu_links": [
-        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Live Map", "url": "/api/predictive-hotspots/", "new_window": True},
-    ],
-    "show_sidebar": True,
-    "navigation_expanded": True,
-    "order_with_respect_to": ["auth", "insight", "accounts"],
-    "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user-shield",
-        "auth.Group": "fas fa-users",
-        "insight.Report": "fas fa-exclamation-triangle",
-        "insight.FieldVerification": "fas faclipboard-check",
-        "insight.IntelligenceSummary": "fas fa-brain",
-        "insight.UserProfile": "fas fa-id-card",
-        "accounts": "fas fa-address-book",
-    },
-    "default_icon_parents": "fas fa-chevron-circle-right",
-    "default_icon_children": "fas fa-circle",
-    "changeform_format": "horizontal_tabs",
-    "changeform_format_overrides": {"auth.user": "collapsible", "auth.group": "vertical_tabs"},
-    "language_chooser": False,
-}
-
-JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-success",
-    "accent": "accent-danger",
-    "navbar": "navbar-dark",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    "layout_boxed": False,
-    "footer_fixed": False,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-danger",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": False,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
-    "button_classes": {
-        "primary": "btn-primary",
-        "secondary": "btn-secondary",
-        "info": "btn-info",
-        "warning": "btn-warning",
-        "danger": "btn-danger",
-        "success": "btn-success",
-    },
-}
+   # ==========================================
+   # ✅ UNFOLD ADMIN THEME CONFIGURATION
+   # ==========================================
+UNFOLD = {
+       "SITE_TITLE": "TarabaInsight Command",
+       "SITE_HEADER": "TarabaInsight Intelligence",
+       "SITE_URL": "/",
+       "SITE_ICON": {
+           "light": lambda request: None,
+           "dark": lambda request: None,
+       },
+       "SITE_LOGO": {
+           "light": lambda request: None,
+           "dark": lambda request: None,
+       },
+       "SITE_SYMBOL": "shield", # ✅ Shows a shield icon next to the title
+       "SHOW_HISTORY": True,
+       "SHOW_VIEW_ON_SITE": True,
+       "COLORS": {
+           "primary": {
+               "50": "255 255 255",
+               "100": "255 255 255",
+               "200": "255 255 255",
+               "300": "255 255 255",
+               "400": "255 255 255",
+               "500": "255 255 255",
+               "600": "255 255 255",
+               "700": "255 255 255",
+               "800": "255 255 255",
+               "900": "255 255 255",
+               "950": "255 255 255",
+           },
+       },
+       "EXTENSIONS": {
+           "modeltranslation": {
+               "flags": {
+                   "en": "🇬🇧",
+                   "fr": "🇫🇷",
+                   "nl": "🇳🇱",
+               },
+           },
+       },
+       "SIDEBAR": {
+           "show_search": True,
+           "show_all_applications": False,
+           "navigation": [
+               {
+                   "title": "Intelligence Operations",
+                   "separator": True,
+                   "items": [
+                       {
+                           "title": "Reports",
+                           "icon": "fas fa-exclamation-triangle",
+                           "link": "/admin/insight/report/",
+                       },
+                       {
+                           "title": "Field Verifications",
+                           "icon": "fas fa-clipboard-check",
+                           "link": "/admin/insight/fieldverification/",
+                       },
+                       {
+                           "title": "AI SITREPS",
+                           "icon": "fas fa-brain",
+                           "link": "/admin/insight/intelligencesummary/",
+                       },
+                   ],
+               },
+               {
+                   "title": "Network & Agents",
+                   "separator": True,
+                   "items": [
+                       {
+                           "title": "Agents & Profiles",
+                           "icon": "fas fa-users",
+                           "link": "/admin/insight/userprofile/",
+                       },
+                       {
+                           "title": "System Users",
+                           "icon": "fas fa-user-shield",
+                           "link": "/admin/auth/user/",
+                       },
+                   ],
+               },
+           ],
+       },
+       "FOOTER": {
+           "show": True,
+           "text": "© 2024 TarabaInsight. All rights reserved.",
+           "link": "https://tarabaintel.gov.ng",
+       },
+    }

@@ -47,7 +47,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ MUST BE HERE
+   # 'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ MUST BE HERE
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -115,7 +115,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = []  # Empty for production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+#STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # ✅ 9. CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True
@@ -243,5 +243,5 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
-# ✅ GRAPPELLI ADMIN THEME
+# ✅ GRAPPELLI ADMIN THEMESTATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 GRAPPELLI_ADMIN_TITLE = "TarabaInsight Command Center"

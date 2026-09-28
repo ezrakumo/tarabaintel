@@ -1,1 +1,1 @@
-   web: rm -rf staticfiles && python manage.py collectstatic --noinput --clear && gunicorn tarabaintel.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py migrate --noinput && gunicorn tarabaintel.wsgi:application --bind 0.0.0.0:$PORT

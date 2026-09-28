@@ -21,9 +21,11 @@ USE_X_FORWARDED_HOST = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-
+# ✅ 3. INSTALLED APPS
 INSTALLED_APPS = [
     "unfold",  # ✅ MUST BE BEFORE admin
+    "unfold.contrib.filters",  # Optional: adds advanced filters
+    "unfold.contrib.forms",    # Optional: adds advanced form widgets
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,13 +50,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ MUST BE HERE
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware', 
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ ADD THIS LINE!
 ]
 
 ROOT_URLCONF = 'tarabaintel.urls'
@@ -115,7 +117,7 @@ USE_TZ = True
 # ✅ 8. STATIC FILES (Consolidated & Cleaned)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # ✅ 9. CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True
@@ -162,94 +164,78 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
-   # ==========================================
-   # ✅ UNFOLD ADMIN THEME CONFIGURATION
-   # ==========================================
+
+# ==========================================
+# ✅ 13. UNFOLD ADMIN THEME CONFIGURATION (FLUSH LEFT, NO LAMBDAS)
+# ==========================================
 UNFOLD = {
-       "SITE_TITLE": "TarabaInsight Command",
-       "SITE_HEADER": "TarabaInsight Intelligence",
-       "SITE_URL": "/",
-       "SITE_ICON": {
-           "light": lambda request: None,
-           "dark": lambda request: None,
-       },
-       "SITE_LOGO": {
-           "light": lambda request: None,
-           "dark": lambda request: None,
-       },
-       "SITE_SYMBOL": "shield", # ✅ Shows a shield icon next to the title
-       "SHOW_HISTORY": True,
-       "SHOW_VIEW_ON_SITE": True,
-       "COLORS": {
-           "primary": {
-               "50": "255 255 255",
-               "100": "255 255 255",
-               "200": "255 255 255",
-               "300": "255 255 255",
-               "400": "255 255 255",
-               "500": "255 255 255",
-               "600": "255 255 255",
-               "700": "255 255 255",
-               "800": "255 255 255",
-               "900": "255 255 255",
-               "950": "255 255 255",
-           },
-       },
-       "EXTENSIONS": {
-           "modeltranslation": {
-               "flags": {
-                   "en": "🇬🇧",
-                   "fr": "🇫🇷",
-                   "nl": "🇳🇱",
-               },
-           },
-       },
-       "SIDEBAR": {
-           "show_search": True,
-           "show_all_applications": False,
-           "navigation": [
-               {
-                   "title": "Intelligence Operations",
-                   "separator": True,
-                   "items": [
-                       {
-                           "title": "Reports",
-                           "icon": "fas fa-exclamation-triangle",
-                           "link": "/admin/insight/report/",
-                       },
-                       {
-                           "title": "Field Verifications",
-                           "icon": "fas fa-clipboard-check",
-                           "link": "/admin/insight/fieldverification/",
-                       },
-                       {
-                           "title": "AI SITREPS",
-                           "icon": "fas fa-brain",
-                           "link": "/admin/insight/intelligencesummary/",
-                       },
-                   ],
-               },
-               {
-                   "title": "Network & Agents",
-                   "separator": True,
-                   "items": [
-                       {
-                           "title": "Agents & Profiles",
-                           "icon": "fas fa-users",
-                           "link": "/admin/insight/userprofile/",
-                       },
-                       {
-                           "title": "System Users",
-                           "icon": "fas fa-user-shield",
-                           "link": "/admin/auth/user/",
-                       },
-                   ],
-               },
-           ],
-       },
-       "FOOTER": {
-           "show": True,
-           "text": "© 2024 TarabaInsight. All rights reserved.",
-           "link": "https://tarabaintel.gov.ng",
-       },
-    }
+    "SITE_TITLE": "TarabaInsight Command",
+    "SITE_HEADER": "TarabaInsight Intelligence",
+    "SITE_URL": "/",
+    "SITE_SYMBOL": "shield", # ✅ Shows a shield icon next to the title
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "COLORS": {
+        "primary": {
+            "50": "255 255 255",
+            "100": "255 255 255",
+            "200": "255 255 255",
+            "300": "255 255 255",
+            "400": "255 255 255",
+            "500": "255 255 255",
+            "600": "255 255 255",
+            "700": "255 255 255",
+            "800": "255 255 255",
+            "900": "255 255 255",
+            "950": "255 255 255",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Intelligence Operations",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Reports",
+                        "icon": "fas fa-exclamation-triangle",
+                        "link": "/admin/insight/report/",
+                    },
+                    {
+                        "title": "Field Verifications",
+                        "icon": "fas fa-clipboard-check",
+                        "link": "/admin/insight/fieldverification/",
+                    },
+                    {
+                        "title": "AI SITREPS",
+                        "icon": "fas fa-brain",
+                        "link": "/admin/insight/intelligencesummary/",
+                    },
+                ],
+            },
+            {
+                "title": "Network & Agents",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Agents & Profiles",
+                        "icon": "fas fa-users",
+                        "link": "/admin/insight/userprofile/",
+                    },
+                    {
+                        "title": "System Users",
+                        "icon": "fas fa-user-shield",
+                        "link": "/admin/auth/user/",
+                    },
+                ],
+            },
+        ],
+    },
+    "FOOTER": {
+        "show": True,
+        "text": "© 2026 TarabaInsight. All rights reserved.",
+        "link": "https://tarabaintel.gov.ng",
+    },
+}

@@ -239,3 +239,9 @@ UNFOLD = {
         "link": "https://tarabaintel.gov.ng",
     },
 }
+
+# Debug static files
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]

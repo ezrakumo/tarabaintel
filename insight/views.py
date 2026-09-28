@@ -638,3 +638,42 @@ def test_bare_metal(request):
         "message": "Hello from Render! The server is alive and routing is working."
     }) 
     
+# ==========================================
+# ✅ AGENT LEADERBOARD ENDPOINT
+# ==========================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def agent_leaderboard(request):
+    """Returns the top 20 agents and the current user's rank."""
+    try:
+        # Get top 20 profiles ordered by total points (descending)
+        top_profiles = UserProfile.objects.select_related('user').order_by('-total_points')[:20]
+        
+        leaderboard = []
+        for rank, profile in enumerate(top_profiles, start=1):
+            leaderboard.append({
+                'rank': rank,
+                'name': profile.user.first_name or profile.user.username,
+                'tier': profile.tier,
+                'points': profile.total_points,
+                'lifetime_points': profile.lifetime_points,
+            })
+            
+        # Calculate current user's approximate rank
+        current_profile = request.user.userprofile
+        # Count how many users have strictly MORE points than the current user, then add 1
+        current_rank = UserProfile.objects.filter(total_points__gt=current_profile.total_points).count() + 1
+        
+        return Response({
+            'status': 'success',
+            'current_user': {
+                'rank': current_rank,
+                'name': current_profile.user.first_name or current_profile.user.username,
+                'tier': current_profile.tier,
+                'points': current_profile.total_points,
+            },
+            'top_agents': leaderboard
+        })
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    

@@ -4,6 +4,10 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from insight.views import (
+    # ... existing imports ...
+    agent_leaderboard, # ✅ ADD THIS
+)
 from rest_framework.routers import DefaultRouter
 
 # ✅ 1. IMPORT ALL VIEWS
@@ -60,6 +64,7 @@ urlpatterns = [
     # ✅ 9. AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
     path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
+    path('api/analytics/leaderboard/', agent_leaderboard, name='agent-leaderboard'),
     
     # ✅ 10. MAIN DASHBOARD
     path('', intelligence_briefing_dashboard, name='dashboard'),

@@ -6,8 +6,9 @@ import 'report_submission_screen.dart';
 import 'pending_verifications_screen.dart';
 import 'command_center_screen.dart';
 import 'login_screen.dart';
-import 'hotspot_map_screen.dart'; // ✅ ADDED IMPORT FOR THE NEW MAP
-import 'covert_calculator_screen.dart'; // ✅ ADDED IMPORT FOR THE NEW CALCULATOR
+import 'hotspot_map_screen.dart';
+import 'covert_calculator_screen.dart';
+import 'leaderboard_screen.dart';
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -178,7 +179,6 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
             tooltip: 'Secure Logout',
             onPressed: _handleLogout,
           ),
-          // ✅ 6. COVERT MODE PANIC BUTTON
           IconButton(
             icon: const Icon(Icons.shield, color: Colors.blueGrey),
             tooltip: 'Engage Covert Mode',
@@ -202,7 +202,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Points & Tier Card
+            // ✅ 1. Points & Tier Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -250,7 +250,43 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ✅ NEW: LIVE THREAT MAP CARD (Replaces broken _buildDashboardIcon)
+            // ✅ 2. LEADERBOARD CARD (Moved to correct location in body)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => const LeaderboardScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F2937),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEAB308).withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.emoji_events, color: Color(0xFFEAB308), size: 36),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Operative Leaderboard', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('See how you rank against top agents', style: TextStyle(color: Colors.white54, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, color: Colors.white54),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ✅ 3. LIVE THREAT MAP CARD
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -288,7 +324,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 2. Affordable Rewards Section
+            // ✅ 4. Affordable Rewards Section
             const Text('Affordable Rewards', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             _dashboard!.affordableRewards.isEmpty
@@ -350,7 +386,7 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
                   ),
             const SizedBox(height: 24),
 
-            // 3. Recent Transactions
+            // ✅ 5. Recent Transactions
             const Text('Recent Activity', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             _dashboard!.recentTransactions.isEmpty

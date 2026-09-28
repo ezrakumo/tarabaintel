@@ -23,10 +23,7 @@ CSRF_COOKIE_SECURE = True
 
 # ✅ 3. INSTALLED APPS
 INSTALLED_APPS = [
-    'grappelli',  # ✅ MUST BE FIRST
-    "unfold",  # ✅ KEEP THIS FOR MIGRATION
-    "unfold.contrib.filters",  # Optional: adds advanced filters
-    "unfold.contrib.forms",    # Optional: adds advanced form widgets
+    'grappelli',  # ✅ MUST BE FIRST!
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -46,7 +43,6 @@ INSTALLED_APPS = [
     'accounts',
     'insight',
 ]
-
 # ✅ 4. MIDDLEWARE (CorsMiddleware MUST be at the very top)
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

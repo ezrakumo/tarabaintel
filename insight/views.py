@@ -647,7 +647,10 @@ def agent_leaderboard(request):
     """Returns the top 20 agents and the current user's rank."""
     try:
         # Get top 20 profiles ordered by total points (descending)
-        top_profiles = UserProfile.objects.select_related('user').order_by('-total_points')[:20]
+        # Use filter to exclude users without profiles
+        top_profiles = UserProfile.objects.select_related('user').filter(
+            user__is_active=True
+        ).order_by('-total_points')[:20]
         
         leaderboard = []
         for rank, profile in enumerate(top_profiles, start=1):
@@ -659,10 +662,21 @@ def agent_leaderboard(request):
                 'lifetime_points': profile.lifetime_points,
             })
             
+        # ✅ SAFE: Get or create current user's profile
+        current_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'total_points': 0,
+                'lifetime_points': 0,
+                'tier': 'CITIZEN'
+            }
+        )
+        
         # Calculate current user's approximate rank
-        current_profile = request.user.userprofile
         # Count how many users have strictly MORE points than the current user, then add 1
-        current_rank = UserProfile.objects.filter(total_points__gt=current_profile.total_points).count() + 1
+        current_rank = UserProfile.objects.filter(
+            total_points__gt=current_profile.total_points
+        ).count() + 1
         
         return Response({
             'status': 'success',
@@ -675,5 +689,10 @@ def agent_leaderboard(request):
             'top_agents': leaderboard
         })
     except Exception as e:
-        return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        import traceback
+        print(f"❌ Leaderboard Error: {e}")
+        print(traceback.format_exc())
+        return Response({
+            'status': 'error', 
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

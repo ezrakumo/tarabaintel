@@ -21,27 +21,45 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     _fetchLeaderboard();
   }
 
-  Future<void> _fetchLeaderboard() async {
+    Future<void> _fetchLeaderboard() async {
+    print(" Fetching leaderboard...");
     setState(() { _isLoading = true; _error = null; });
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token');
+      
+      print(" Token: ${token?.substring(0, 20)}...");
 
       final response = await http.get(
         Uri.parse('https://tarabaintel-ai.onrender.com/api/analytics/leaderboard/'),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       ).timeout(const Duration(seconds: 15));
+
+      print(" Leaderboard API Status: ${response.statusCode}");
+      print("📦 Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         setState(() {
           _data = jsonDecode(response.body);
           _isLoading = false;
         });
+        print("✅ Leaderboard loaded successfully!");
       } else {
-        setState(() { _error = 'Failed to load leaderboard'; _isLoading = false; });
+        print("❌ Failed to load leaderboard: ${response.statusCode}");
+        setState(() { 
+          _error = 'Server error: ${response.statusCode}'; 
+          _isLoading = false; 
+        });
       }
     } catch (e) {
-      setState(() { _error = 'Network error'; _isLoading = false; });
+      print("❌ Network error: $e");
+      setState(() { 
+        _error = 'Network error: $e'; 
+        _isLoading = false; 
+      });
     }
   }
 

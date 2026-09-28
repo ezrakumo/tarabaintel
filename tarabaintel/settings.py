@@ -43,11 +43,12 @@ INSTALLED_APPS = [
     'accounts',
     'insight',
 ]
-# ✅ 4. MIDDLEWARE (CorsMiddleware MUST be at the very top)
+
+# ✅ 4. MIDDLEWARE
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-   # 'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ MUST BE HERE
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ MUST BE HERE
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -107,15 +108,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # ✅ 7. INTERNATIONALIZATION
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Africa/Lagos' # ✅ Updated to Taraba State Timezone
+TIME_ZONE = 'Africa/Lagos'
 USE_I18N = True
 USE_TZ = True
 
-# ✅ 8. STATIC FILES (Consolidated & Cleaned)
+# ✅ 8. STATIC FILES (Production Ready)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = []  # Empty for production
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # ✅ 9. CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True
@@ -146,9 +146,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
-# ⚠️ CRITICAL: Use Environment Variables ONLY. Never hardcode passwords!
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '') # ✅ LEAVE BLANK, SET IN RENDER
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '') # ✅ SET IN RENDER ENV VARS
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
@@ -164,84 +163,6 @@ CHANNEL_LAYERS = {
 }
 
 # ==========================================
-# ✅ 13. UNFOLD ADMIN THEME CONFIGURATION (FLUSH LEFT, NO LAMBDAS)
+# ✅ 13. GRAPPELLI ADMIN THEME CONFIGURATION
 # ==========================================
-UNFOLD = {
-    "SITE_TITLE": "TarabaInsight Command",
-    "SITE_HEADER": "TarabaInsight Intelligence",
-    "SITE_URL": "/",
-    "SITE_SYMBOL": "shield", # ✅ Shows a shield icon next to the title
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": True,
-    "COLORS": {
-        "primary": {
-            "50": "255 255 255",
-            "100": "255 255 255",
-            "200": "255 255 255",
-            "300": "255 255 255",
-            "400": "255 255 255",
-            "500": "255 255 255",
-            "600": "255 255 255",
-            "700": "255 255 255",
-            "800": "255 255 255",
-            "900": "255 255 255",
-            "950": "255 255 255",
-        },
-    },
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": False,
-        "navigation": [
-            {
-                "title": "Intelligence Operations",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Reports",
-                        "icon": "fas fa-exclamation-triangle",
-                        "link": "/admin/insight/report/",
-                    },
-                    {
-                        "title": "Field Verifications",
-                        "icon": "fas fa-clipboard-check",
-                        "link": "/admin/insight/fieldverification/",
-                    },
-                    {
-                        "title": "AI SITREPS",
-                        "icon": "fas fa-brain",
-                        "link": "/admin/insight/intelligencesummary/",
-                    },
-                ],
-            },
-            {
-                "title": "Network & Agents",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Agents & Profiles",
-                        "icon": "fas fa-users",
-                        "link": "/admin/insight/userprofile/",
-                    },
-                    {
-                        "title": "System Users",
-                        "icon": "fas fa-user-shield",
-                        "link": "/admin/auth/user/",
-                    },
-                ],
-            },
-        ],
-    },
-    "FOOTER": {
-        "show": True,
-        "text": "© 2026 TarabaInsight. All rights reserved.",
-        "link": "https://tarabaintel.gov.ng",
-    },
-}
-
-# Debug static files
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-]
-# ✅ GRAPPELLI ADMIN THEMESTATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 GRAPPELLI_ADMIN_TITLE = "TarabaInsight Command Center"

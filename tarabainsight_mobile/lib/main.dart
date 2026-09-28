@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/rewards_dashboard_screen.dart';
+import 'screens/covert_calculator_screen.dart'; // ✅ ADD THIS
 
 void main() {
   runApp(const TarabaInsightApp());
@@ -15,13 +16,28 @@ class TarabaInsightApp extends StatelessWidget {
     return MaterialApp(
       title: 'TarabaInsight',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        brightness: Brightness.dark,
+      theme: ThemeData(primarySwatch: Colors.amber, brightness: Brightness.dark),
+      // ✅ DYNAMIC ROUTING BASED ON COVERT MODE
+      home: FutureBuilder<bool>(
+        future: _checkCovertMode(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          // If true, show Calculator. If false, show Real App.
+          if (snapshot.data == true) {
+            return const CovertCalculatorScreen();
+          } else {
+            return const LoginScreen(); // Replace with AuthWrapper() if you use one
+          }
+        },
       ),
-      // ✅ THIS IS THE MAGIC LINE: It checks for a token first!
-      home: const AuthWrapper(), 
     );
+  }
+
+  Future<bool> _checkCovertMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('is_covert_mode') ?? false; // Default to false (Real App)
   }
 }
 

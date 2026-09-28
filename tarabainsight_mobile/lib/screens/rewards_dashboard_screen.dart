@@ -7,6 +7,7 @@ import 'pending_verifications_screen.dart';
 import 'command_center_screen.dart';
 import 'login_screen.dart';
 import 'hotspot_map_screen.dart'; // ✅ ADDED IMPORT FOR THE NEW MAP
+import 'covert_calculator_screen.dart'; // ✅ ADDED IMPORT FOR THE NEW CALCULATOR
 
 class RewardsDashboardScreen extends StatefulWidget {
   const RewardsDashboardScreen({Key? key}) : super(key: key);
@@ -176,6 +177,23 @@ class _RewardsDashboardScreenState extends State<RewardsDashboardScreen> {
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             tooltip: 'Secure Logout',
             onPressed: _handleLogout,
+          ),
+          // ✅ 6. COVERT MODE PANIC BUTTON
+          IconButton(
+            icon: const Icon(Icons.shield, color: Colors.blueGrey),
+            tooltip: 'Engage Covert Mode',
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('is_covert_mode', true); // Lock the app
+              
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CovertCalculatorScreen()),
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),

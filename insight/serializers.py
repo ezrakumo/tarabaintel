@@ -29,6 +29,7 @@ class ReportSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'submitted_at', 'submitted_by',
+            'location', # ✅ ADDED: Prevents WKT string parsing crashes
             'ai_suggested_category', 'ai_confidence_score',
             'ai_sentiment', 'ai_urgency_level',
             'ai_extracted_entities', 'intel_quality_score',

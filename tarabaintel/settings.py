@@ -3,52 +3,48 @@ from pathlib import Path
 import dj_database_url
 from datetime import timedelta
 
+# ✅ 1. BASE DIRECTORY
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ 1. SECURE SECRET KEY
+# ✅ 2. SECURITY SETTINGS
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-for-local-dev-only-CHANGE-IN-PRODUCTION')
-
-# ✅ 2. SECURE DEBUG
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
-# ✅ 3. SECURE HOSTS (Cleaned up, no duplicates)
+# Clean and secure ALLOWED_HOSTS
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-for host in ['localhost', '127.0.0.1', 'tarabaintel-ai.onrender.com', '*']:
-    if host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(host)
+ALLOWED_HOSTS.extend(['tarabaintel-ai.onrender.com', '*'])
+ALLOWED_HOSTS = list(set(ALLOWED_HOSTS)) # Remove duplicates
 
-# ✅ 4. SECURE PROXY SETTINGS (Required for Render's HTTPS load balancer)
+# Render HTTPS Proxy Settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
-
-# ✅ 5. SECURE COOKIES
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# ✅ 6. INSTALLED APPS
+# ✅ 3. INSTALLED APPS (Jazzmin MUST be first)
 INSTALLED_APPS = [
-    'jazzmin', # ✅ MUST BE FIRST!
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',  # For development
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     
-    # Third-party apps
+    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.gis',
     'corsheaders',
     'channels',
     
-    # Your apps
+    # Local apps
     'accounts',
     'insight',
 ]
 
-# ✅ 7. MIDDLEWARE (CorsMiddleware MUST be at the very top)
+# ✅ 4. MIDDLEWARE (CorsMiddleware MUST be at the very top)
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -80,7 +76,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'tarabaintel.wsgi.application'
 ASGI_APPLICATION = 'tarabaintel.asgi.application'
 
-# ✅ 8. DATABASE CONFIGURATION (PostGIS)
+# ✅ 5. DATABASE CONFIGURATION (PostGIS)
 db_url = os.environ.get('DATABASE_URL', 'postgresql://tarabaintel_user:7n2CKWXlQJrCYzlzoaVejxvoRW0sUPih@dpg-dae5d5dbedkc73bd8d20-a.oregon-postgres.render.com/tarabaintel')
 is_sqlite = 'sqlite' in db_url
 
@@ -95,13 +91,13 @@ DATABASES = {
 if not is_sqlite:
     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 
-# ✅ 9. LOCAL WINDOWS POSTGIS PATHS (Ignored on Render/Linux)
+# Local Windows PostGIS Paths (Ignored on Render/Linux)
 if os.name == 'nt':
     os.environ['PATH'] = r'C:\Program Files\PostgreSQL\18\bin' + os.pathsep + os.environ.get('PATH', '')
     GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
     GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
-# ✅ 10. PASSWORD VALIDATION
+# ✅ 6. PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -109,24 +105,24 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ✅ 7. INTERNATIONALIZATION
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos' # ✅ Updated to Taraba State Timezone
 USE_I18N = True
 USE_TZ = True
 
-# ✅ 11. STATIC FILES (Fixed & Consolidated)
+# ✅ 8. STATIC FILES (Consolidated & Cleaned)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# ✅ ADD THIS LINE FOR GUNICORN STATIC FILE SERVING
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ✅ 12. CORS SETTINGS (Cleaned up)
+# ✅ 9. CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = ['accept', 'accept-encoding', 'authorization', 'content-type', 'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with']
 
-# ✅ 13. REST FRAMEWORK & JWT SETTINGS
+# ✅ 10. REST FRAMEWORK & JWT SETTINGS
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -142,15 +138,16 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# ✅ 14. EMAIL CONFIGURATION (Cleaned up, single source of truth)
+# ✅ 11. EMAIL CONFIGURATION (SECURED)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
+# ⚠️ CRITICAL: Use Environment Variables ONLY. Never hardcode passwords!
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ezrakumo@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '#MYGMAIL1@.kure2#')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '') # ✅ LEAVE BLANK, SET IN RENDER
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
@@ -158,17 +155,15 @@ WEEKLY_FORECAST_RECIPIENTS = os.environ.get(
     'admin@tarabaintel.gov.ng,ops@tarabaintel.gov.ng'
 ).split(',')
 
-# ✅ 15. CHANNELS / WEBSOCKET SETTINGS (Properly closed!)
+# ✅ 12. CHANNELS / WEBSOCKET SETTINGS
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # ==========================================
-# ✅ JAZZMIN ADMIN THEME CONFIGURATION
+# ✅ 13. JAZZMIN ADMIN THEME CONFIGURATION
 # ==========================================
 JAZZMIN_SETTINGS = {
     "site_title": "TarabaInsight Command",
@@ -179,7 +174,7 @@ JAZZMIN_SETTINGS = {
     "search_model": ["auth.User", "insight.Report"],
     "topmenu_links": [
         {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Live Map", "url": "https://tarabaintel-ai.onrender.com/api/predictive-hotspots/", "new_window": True},
+        {"name": "Live Map", "url": "/api/predictive-hotspots/", "new_window": True},
     ],
     "show_sidebar": True,
     "navigation_expanded": True,
@@ -189,7 +184,7 @@ JAZZMIN_SETTINGS = {
         "auth.user": "fas fa-user-shield",
         "auth.Group": "fas fa-users",
         "insight.Report": "fas fa-exclamation-triangle",
-        "insight.FieldVerification": "fas fa-clipboard-check",
+        "insight.FieldVerification": "fas faclipboard-check",
         "insight.IntelligenceSummary": "fas fa-brain",
         "insight.UserProfile": "fas fa-id-card",
         "accounts": "fas fa-address-book",
@@ -221,7 +216,7 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "darkly", # ✅ DARK THEME FOR COMMAND CENTER VIBE
+    "theme": "darkly",
     "dark_mode_theme": "darkly",
     "button_classes": {
         "primary": "btn-primary",

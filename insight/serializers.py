@@ -1,12 +1,8 @@
 from rest_framework import serializers
 from .models import (
-    Report, FieldAgent, FieldVerification, LGA, RewardLedger, Redemption
+    Report, FieldAgent, FieldVerification, LGA, RewardLedger, Redemption,
+    UserProfile, RewardCatalog, AgentRegistrationRequest
 )
-from .models import UserProfile
-from .models import RewardCatalog # Ensure this is at the top of your file
-from .models import AgentRegistrationRequest
-
-
 
 # ==========================================
 # CORE SERIALIZERS
@@ -29,30 +25,27 @@ class ReportSerializer(serializers.ModelSerializer):
             'ai_suggested_category', 'ai_confidence_score',
             'ai_sentiment', 'ai_urgency_level', 'ai_extracted_entities',
             'is_covert', 'intel_quality_score', 'points_awarded',
-            'acknowledgment_sent'
+            'acknowledgment_sent', 'state' # ✅ ADDED STATE FIELD
         ]
         read_only_fields = [
-            'id', 'submitted_at', 'submitted_by', # ✅ Backend will inject this, frontend shouldn't send it
+            'id', 'submitted_at', 'submitted_by',
             'ai_suggested_category', 'ai_confidence_score',
             'ai_sentiment', 'ai_urgency_level',
             'ai_extracted_entities', 'intel_quality_score',
             'points_awarded', 'acknowledgment_sent'
         ]
         extra_kwargs = {
-            'lga': {'required': False, 'allow_null': True}, # ✅ Make LGA optional to prevent crashes
+            'lga': {'required': False, 'allow_null': True},
+            'state': {'required': False, 'allow_null': False} # ✅ STATE IS OPTIONAL IN PAYLOAD, DEFAULTS IN MODEL
         }
-
 
 class FieldAgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldAgent
         fields = ['id', 'agent_id', 'name', 'is_active', 'assigned_lga']
 
-
 class FieldVerificationSerializer(serializers.ModelSerializer):
-    # ✅ Pulls full report details so you see Category/Description
     report = ReportSerializer(read_only=True)
-    # ✅ Pulls the Agent ID as a simple string so Flutter can read it easily
     assigned_agent_id = serializers.CharField(source='assigned_agent.agent_id', read_only=True, allow_null=True)
 
     class Meta:
@@ -66,10 +59,8 @@ class FieldVerificationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'assigned_at']
 
-
 class VerificationClaimSerializer(serializers.Serializer):
     agent_id = serializers.CharField()
-
 
 class VerificationCompleteSerializer(serializers.Serializer):
     agent_id = serializers.CharField()
@@ -89,10 +80,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'tier', 'total_points',
             'lifetime_points', 'phone_number', 'is_verified',
-            'use_codename', 'codename'
+            'use_codename', 'codename', 'state' # ✅ ADDED STATE HERE TOO
         ]
         read_only_fields = ['tier', 'total_points', 'lifetime_points', 'is_verified']
-
 
 class RewardLedgerSerializer(serializers.ModelSerializer):
     transaction_type_display = serializers.CharField(
@@ -112,7 +102,6 @@ class RewardLedgerSerializer(serializers.ModelSerializer):
             'points', 'description', 'related_report_id', 'created_at'
         ]
 
-
 class RewardCatalogSerializer(serializers.ModelSerializer):
     is_available = serializers.BooleanField(read_only=True)
 
@@ -124,19 +113,15 @@ class RewardCatalogSerializer(serializers.ModelSerializer):
             'quantity_available', 'is_available'
         ]
 
-
-# ✅ MERGED & FIXED: Single, perfect RedeemRewardSerializer
 class RedeemRewardSerializer(serializers.Serializer):
     reward_id = serializers.IntegerField()
     delivery_details = serializers.CharField(required=False, allow_blank=True)
 
     def validate_reward_id(self, value):
         try:
-            # ✅ FIXED: Use 'is_active' (the actual DB field) instead of 'is_available'
             return RewardCatalog.objects.get(id=value, is_active=True)
         except RewardCatalog.DoesNotExist:
             raise serializers.ValidationError("Reward not found or unavailable.")
-
 
 class MyReportSerializer(serializers.ModelSerializer):
     lga_name = serializers.CharField(source='lga.name', read_only=True, default='Unknown')
@@ -146,9 +131,8 @@ class MyReportSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'submitted_at', 'lga_name', 'issue_category',
             'intel_quality_score', 'points_awarded', 'status',
-            'ai_urgency_level', 'ai_confidence_score'
+            'ai_urgency_level', 'ai_confidence_score', 'state' # ✅ ADDED STATE
         ]
-
 
 class DashboardLedgerSerializer(serializers.ModelSerializer):
     transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
@@ -157,7 +141,6 @@ class DashboardLedgerSerializer(serializers.ModelSerializer):
         model = RewardLedger
         fields = ['id', 'transaction_type_display', 'points', 'description', 'created_at']
 
-
 class DashboardRewardSerializer(serializers.ModelSerializer):
     is_available = serializers.BooleanField(read_only=True)
 
@@ -165,21 +148,14 @@ class DashboardRewardSerializer(serializers.ModelSerializer):
         model = RewardCatalog
         fields = ['id', 'title', 'description', 'category', 'points_required', 'is_available']
 
-
 class RewardsDashboardSerializer(serializers.Serializer):
-    """Strict contract for the dashboard payload"""
     profile = serializers.DictField()
     recent_transactions = DashboardLedgerSerializer(many=True)
-    # Note: If you don't have a Redemption model, comment out the next line and the import at the top!
-    # active_redemptions = DashboardRedemptionSerializer(many=True) 
     affordable_rewards = DashboardRewardSerializer(many=True)
     next_tier = serializers.CharField(allow_null=True)
     points_to_next_tier = serializers.IntegerField(allow_null=True)
 
-
-# ✅ FIXED: Perfectly matches the AgentRegistrationRequest model
 class AgentRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentRegistrationRequest
-        # ✅ ONLY INCLUDE FIELDS THAT ACTUALLY EXIST IN THE MODEL
         fields = ['full_name', 'phone_number', 'email', 'lga', 'reason_for_joining']

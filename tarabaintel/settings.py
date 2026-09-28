@@ -112,10 +112,19 @@ TIME_ZONE = 'Africa/Lagos'
 USE_I18N = True
 USE_TZ = True
 
-# ✅ 8. STATIC FILES (Production Ready)
+# ✅ 8. STATIC FILES (Modern Django 4.2+ Configuration)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# ✅ This is the REQUIRED way to configure WhiteNoise in Django 4.2+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # ✅ 9. CORS SETTINGS
 CORS_ALLOW_CREDENTIALS = True

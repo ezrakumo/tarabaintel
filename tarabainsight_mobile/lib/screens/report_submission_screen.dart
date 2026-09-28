@@ -25,6 +25,7 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
   final _locationController = TextEditingController();
   
   String _selectedCategory = 'Security Threat';
+  String _selectedState = 'TARABA'; // ✅ NEW
   Uint8List? _imageBytes;
   bool _isSubmitting = false;
 
@@ -40,11 +41,13 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
     'Environmental Hazard'
   ];
 
+  final List<String> _states = ['TARABA', 'DELTA']; // ✅ NEW
+
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery, 
-      imageQuality: 50, // 50% quality to save bandwidth and prevent timeout
+      imageQuality: 50,
     );
 
     if (image != null) {
@@ -56,47 +59,44 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
   }
 
   Future<void> _toggleRecording() async {
-  // ✅ WEB SAFETY CHECK
-  if (kIsWeb) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('⚠️ Voice recording is only supported on Android/iOS devices.'), 
-        backgroundColor: Colors.orange
-      ),
-    );
-    return;
-  }
-
-  if (_isRecording) {
-    // Stop recording
-    final path = await _audioRecorder.stop();
-    setState(() {
-      _isRecording = false;
-      _audioFilePath = path;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Voice note recorded successfully!'), backgroundColor: Colors.green),
-    );
-  } else {
-    // Start recording
-    final hasPermission = await _audioRecorder.hasPermission();
-    if (!hasPermission) {
+    if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Microphone permission denied'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('️ Voice recording is only supported on Android/iOS devices.'), 
+          backgroundColor: Colors.orange
+        ),
       );
       return;
     }
-    
-    final dir = await getApplicationDocumentsDirectory();
-    final filePath = '${dir.path}/report_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    
-    await _audioRecorder.start(const RecordConfig(), path: filePath);
-    setState(() {
-      _isRecording = true;
-      _audioFilePath = null;
-    });
+
+    if (_isRecording) {
+      final path = await _audioRecorder.stop();
+      setState(() {
+        _isRecording = false;
+        _audioFilePath = path;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Voice note recorded successfully!'), backgroundColor: Colors.green),
+      );
+    } else {
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Microphone permission denied'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/report_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      
+      await _audioRecorder.start(const RecordConfig(), path: filePath);
+      setState(() {
+        _isRecording = true;
+        _audioFilePath = null;
+      });
+    }
   }
-}
 
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;
@@ -109,25 +109,22 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
       imageBase64 = base64Encode(_imageBytes!);
     }
 
-    // ✅ READ AUDIO FILE TO BASE64 FOR SUBMISSION
     String? audioBase64;
     if (_audioFilePath != null) {
       try {
         final audioBytes = await File(_audioFilePath!).readAsBytes();
         audioBase64 = base64Encode(audioBytes);
       } catch (e) {
-        print("⚠️ Failed to read audio file for upload: $e");
+        print("️ Failed to read audio file for upload: $e");
       }
     }
 
-    // ✅ 1. CHECK CONNECTIVITY
     final connectivityResult = await Connectivity().checkConnectivity();
     final isOnline = connectivityResult is List 
         ? connectivityResult.any((result) => result != ConnectivityResult.none)
         : connectivityResult != ConnectivityResult.none;
 
     if (isOnline) {
-      // ✅ 2. ONLINE: Attempt direct API submission
       try {
         final response = await http.post(
           Uri.parse('https://tarabaintel-ai.onrender.com/api/reports/'),
@@ -136,12 +133,13 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
+            'state': _selectedState, // ✅ ADDED
             'description': _descriptionController.text,
             'issue_category': _selectedCategory,
             'lga_name': _locationController.text, 
             'location': 'POINT (11.3667 8.8833)', 
             'image_base64': imageBase64, 
-            'audio_base64': audioBase64, // ✅ ADDED TO PAYLOAD
+            'audio_base64': audioBase64,
             'is_covert': false,
           }),
         ).timeout(const Duration(seconds: 30));
@@ -165,7 +163,6 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
         Navigator.pop(context, true);
       }
     } else {
-      // 🔴 3. OFFLINE: Save directly to local database
       print("📴 Device is offline. Saving report locally...");
       await _saveOffline(token, imageBase64, audioBase64);
       
@@ -183,20 +180,20 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
     setState(() => _isSubmitting = false);
   }
 
-  // ✅ HELPER: Save to local SQLite DB
   Future<void> _saveOffline(String? token, String? imageBase64, String? audioBase64) async {
     final reportId = const Uuid().v4();
     final now = DateTime.now().toIso8601String();
 
     final offlineReport = {
       'id': reportId,
+      'state': _selectedState, // ✅ ADDED
       'category': _selectedCategory,
       'description': _descriptionController.text,
       'lga': _locationController.text,
       'lat': 8.8833, 
       'lon': 11.3667,
       'image_base64': imageBase64, 
-      'audio_base64': audioBase64, // ✅ ADDED TO OFFLINE DB
+      'audio_base64': audioBase64,
       'created_at': now,
     };
 
@@ -204,7 +201,7 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
       await OfflineDb.instance.insertReport(offlineReport);
       print("💾 Successfully saved offline report: $reportId");
     } catch (e) {
-      print("❌ Failed to save offline report: $e");
+      print(" Failed to save offline report: $e");
     }
   }
 
@@ -224,6 +221,21 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ✅ STATE DROPDOWN
+              const Text('State', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedState,
+                dropdownColor: const Color(0xFF1F2937),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  filled: true, fillColor: Color(0xFF111827), border: OutlineInputBorder(),
+                ),
+                items: _states.map((state) => DropdownMenuItem(value: state, child: Text(state))).toList(),
+                onChanged: (val) => setState(() => _selectedState = val!),
+              ),
+              const SizedBox(height: 16),
+
               const Text('Issue Category', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -244,7 +256,7 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
                 controller: _locationController,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  hintText: 'e.g., Jalingo, near the main market',
+                  hintText: 'e.g., Jalingo, Warri, near the main market',
                   hintStyle: TextStyle(color: Colors.grey),
                   filled: true, fillColor: Color(0xFF111827), border: OutlineInputBorder(),
                 ),
@@ -296,7 +308,6 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ✅ VOICE NOTE RECORDER UI (Perfectly Indented)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -317,7 +328,7 @@ class _ReportSubmissionScreenState extends State<ReportSubmissionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _isRecording ? 'Recording... Tap to Stop' : 'Tap to Record Voice Note (Hausa, Tiv, etc.)',
+                            _isRecording ? 'Recording... Tap to Stop' : 'Tap to Record Voice Note (Hausa, Tiv, Urhobo, etc.)',
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                           if (_audioFilePath != null)

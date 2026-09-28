@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import random
 import requests
 import traceback
 from datetime import timedelta
@@ -23,8 +24,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .services.sitrep_generator import generate_daily_sitrep
-
 
 from .models import (
     Report, FieldAgent, FieldVerification, LGA, 
@@ -43,14 +42,24 @@ from insight.services.intelligence_service import IntelligenceGenerationService
 from insight.services.quality_grader import grade_and_reward_report
 from .services.hotspot_predictor import HotspotPredictor
 from .services.intelligence_cycle import IntelligenceCycleEngine
-from .services.sitrep_generator import generate_daily_sitrep
 
 User = get_user_model()
 
-
 class ReportViewSet(viewsets.ModelViewSet):
-    queryset = Report.objects.all().order_by('-submitted_at')
     serializer_class = ReportSerializer
+    permission_classes = [IsAuthenticated]
+
+    # ✅ MULTI-TENANT DATA ISOLATION
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Report.objects.all().order_by('-submitted_at')
+        
+        user_profile = getattr(user, 'intel_profile', None)
+        if user_profile and user_profile.state:
+            return Report.objects.filter(state=user_profile.state).order_by('-submitted_at')
+        
+        return Report.objects.none()
 
     def perform_create(self, serializer):
         import base64
@@ -58,55 +67,55 @@ class ReportViewSet(viewsets.ModelViewSet):
 
         print(f"🚀 Starting report creation for user: {self.request.user}")
         
-        # ✅ 1. EXTRACT AUDIO BASE64 BEFORE SAVING
         audio_base64 = self.request.data.get('audio_base64')
+        # ✅ EXTRACT STATE FROM REQUEST
+        report_state = self.request.data.get('state', 'TARABA')
         
-        # ✅ 2. SAVE THE REPORT
-        report = serializer.save(status='RAW', submitted_by=self.request.user)
-        print(f"💾 Report {report.id} saved to database successfully.")
+        # ✅ SAVE REPORT WITH STATE
+        report = serializer.save(
+            status='RAW', 
+            submitted_by=self.request.user,
+            state=report_state
+        )
+        print(f"💾 Report {report.id} saved to database successfully for state: {report_state}")
         
-        # ✅ 3. PROCESS AUDIO IF UPLOADED
-                # ✅ 3. PROCESS AUDIO IF UPLOADED (Safe Check)
+        # ✅ PROCESS AUDIO
         if audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
             try:
                 print("🎤 Audio base64 detected. Decoding and transcribing...")
-                
-                # Decode base64 to a temporary file
                 audio_data = base64.b64decode(audio_base64)
                 temp_audio_path = f"/tmp/report_audio_{report.id}.m4a"
                 
                 with open(temp_audio_path, "wb") as f:
                     f.write(audio_data)
                 
-                # Transcribe and translate using Whisper
-                from .services.audio_transcriber import transcribe_and_translate_audio
                 translated_text = transcribe_and_translate_audio(temp_audio_path)
                 
                 if not translated_text.startswith("Error:"):
-                    # Append the translated voice note to the description
                     original_desc = report.description or "No text provided"
                     report.description = f"[VOICE NOTE TRANSLATION]: {translated_text}\n\n[ORIGINAL TEXT]: {original_desc}"
                     report.save(update_fields=['description'])
                     print("✅ Voice note successfully translated and appended to report!")
                 else:
-                    print(f"⚠️ {translated_text}")
+                    print(f"️ {translated_text}")
                     
-                # Clean up temp file to save server space
                 if os.path.exists(temp_audio_path):
                     os.remove(temp_audio_path)
-                    
             except Exception as audio_error:
                 print(f"❌ Failed to process audio: {audio_error}")
 
-        # ✅ 4. LGA COORDINATES DATABASE
+        # ✅ LGA COORDINATES
         lga_coords = {
             'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
             'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
             'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
             'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
+            # Delta State LGAs
+            'Asaba': (5.5167, 6.7333), 'Warri': (5.5167, 5.7500),
+            'Ughelli': (5.4833, 6.0000), 'Sapele': (5.8833, 6.6667),
         }
         
-        lat, lon = 8.8833, 11.3667  # Default to Jalingo
+        lat, lon = 8.8833, 11.3667
         
         if report.location:
             try:
@@ -126,9 +135,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                 update_fields.extend(['lat', 'lon'])
             report.save(update_fields=update_fields)
 
-        # ✅ 5. WEBSOCKET BROADCAST
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
+        # ✅ WEBSOCKET BROADCAST
         channel_layer = get_channel_layer()
         try:
             async_to_sync(channel_layer.group_send)(
@@ -147,8 +154,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         except Exception as ws_error:
             print(f"❌ WebSocket broadcast FAILED: {ws_error}")
 
-        # ✅ 6. AI SERVICE CALL
-        import requests
+        # ✅ AI SERVICE CALL
         try:
             ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
             response = requests.post(f"{ai_base_url}/analyze", json={
@@ -174,33 +180,29 @@ class ReportViewSet(viewsets.ModelViewSet):
             report.status = 'PROCESSED'
             report.save()
 
-        # ✅ 7. GRADING & REWARDS
-        from insight.services.quality_grader import grade_and_reward_report
+        # ✅ GRADING & REWARDS
         try:
             grade_and_reward_report(report)
         except Exception as grade_error:
             print(f"❌ Grading failed: {grade_error}")
 
-        # ✅ 8. AUTO-CREATE VERIFICATION FOR HIGH URGENCY
+        # ✅ AUTO-CREATE VERIFICATION
         if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
-            from .models import FieldVerification
             FieldVerification.objects.create(report=report, status='PENDING')
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="tarabaintel_intelligence_export.csv"'
+        response['Content-Disposition'] = 'attachment; filename="intelligence_export.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Report ID', 'Submitted At', 'LGA', 'Category', 'Urgency Level', 'AI Confidence', 'Description', 'Status'])
-        for report in Report.objects.all().order_by('-submitted_at'):
+        writer.writerow(['Report ID', 'State', 'Submitted At', 'LGA', 'Category', 'Urgency Level', 'Description'])
+        for report in self.get_queryset():
             writer.writerow([
-                str(report.id), report.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if report.submitted_at else '',
+                str(report.id), report.state, report.submitted_at.strftime('%Y-%m-%d %H:%M:%S'),
                 report.lga.name if report.lga else 'Unknown', report.issue_category,
-                report.ai_urgency_level or 'PENDING', f"{report.ai_confidence_score * 100:.1f}%" if report.ai_confidence_score else '0%',
-                report.description, report.status
+                report.ai_urgency_level, report.description
             ])
         return response
-
 
 class FieldVerificationViewSet(viewsets.ModelViewSet):
     serializer_class = FieldVerificationSerializer
@@ -281,7 +283,6 @@ class FieldVerificationViewSet(viewsets.ModelViewSet):
         
         return Response({'message': 'Verification completed successfully', 'status': verification.report.status})
 
-
 @staff_member_required
 def intelligence_briefing_dashboard(request):
     latest_summary = IntelligenceSummary.objects.first()
@@ -307,7 +308,6 @@ def intelligence_briefing_dashboard(request):
     }
     return render(request, 'intelligence_dashboard.html', context)
 
-
 @api_view(['GET'])
 def test_ai_engine(request):
     secret_token = request.GET.get('token', '')
@@ -322,10 +322,8 @@ def test_ai_engine(request):
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
 
-
 def rewards_dashboard_page(request):
     return render(request, 'rewards_dashboard.html')
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -352,9 +350,8 @@ def rewards_dashboard_api(request):
             'nextTier': next_tier, 'pointsToNextTier': max(0, points_to_next),
         })
     except Exception as e:
-        print(f"❌ DASHBOARD API ERROR: {e}")
+        print(f" DASHBOARD API ERROR: {e}")
         return Response({'status': 'error', 'message': str(e)}, status=500)
-
 
 class RedeemRewardView(APIView):
     permission_classes = [IsAuthenticated]
@@ -378,17 +375,20 @@ class RedeemRewardView(APIView):
         )
         return Response({"message": f"Successfully redeemed {reward.title}!", "new_balance": profile.total_points}, status=status.HTTP_201_CREATED)
 
-
-import random # Make sure 'import random' is at the very top of your views.py file!
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def predictive_hotspots(request):
-    """Returns high-priority reports with coordinates, adding slight jitter to prevent stacking."""
     try:
+        user = request.user
         reports = Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'])
-        hotspots = []
         
+        # ✅ MULTI-TENANT FILTER FOR HOTSPOTS
+        if not user.is_superuser:
+            user_profile = getattr(user, 'intel_profile', None)
+            if user_profile and user_profile.state:
+                reports = reports.filter(state=user_profile.state)
+
+        hotspots = []
         for r in reports:
             lat, lon = None, None
             if hasattr(r, 'lat') and hasattr(r, 'lon') and r.lat is not None and r.lon is not None:
@@ -401,7 +401,6 @@ def predictive_hotspots(request):
                     pass
             
             if lat is not None and lon is not None:
-                # ✅ ADD TINY JITTER (0.05 degrees is about 5km) to spread out stacked pins
                 jitter_lat = random.uniform(-0.05, 0.05)
                 jitter_lon = random.uniform(-0.05, 0.05)
                 
@@ -410,12 +409,12 @@ def predictive_hotspots(request):
                     'lon': lon + jitter_lon,
                     'category': r.issue_category or 'Unknown',
                     'severity': r.ai_urgency_level,
+                    'state': r.state
                 })
         
         return Response({'status': 'success', 'hotspot_count': len(hotspots), 'hotspots': hotspots})
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
-
 
 @api_view(['GET'])
 def trigger_weekly_forecast(request):
@@ -429,7 +428,6 @@ def trigger_weekly_forecast(request):
         return Response({"status": "SUCCESS", "message": "Weekly forecast initiated."})
     except Exception as e:
         return Response({"status": "ERROR", "message": str(e)}, status=500)
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -452,7 +450,6 @@ def debug_rewards(request):
         "filtered_rewards": [{"title": r.title, "points": r.points_required, "tier": r.min_tier_required} for r in filtered_rewards]
     })
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def agent_performance_analytics(request):
@@ -469,7 +466,6 @@ def agent_performance_analytics(request):
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def generate_intelligence_briefing(request):
@@ -485,30 +481,40 @@ def generate_intelligence_briefing(request):
     
     return Response(briefing)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def stakeholder_dashboard(request):
+    user = request.user
+    reports_qs = Report.objects.all()
+    
+    # ✅ MULTI-TENANT FILTER FOR DASHBOARD
+    if not user.is_superuser:
+        user_profile = getattr(user, 'intel_profile', None)
+        if user_profile and user_profile.state:
+            reports_qs = reports_qs.filter(state=user_profile.state)
+
     return Response({
         'status': 'success',
         'kpis': {
-            'reports_24h': Report.objects.filter(submitted_at__gte=timezone.now() - timedelta(hours=24)).count(),
-            'critical_active': Report.objects.filter(ai_urgency_level='CRITICAL', status__in=['RAW', 'PROCESSED']).count(),
+            'reports_24h': reports_qs.filter(submitted_at__gte=timezone.now() - timedelta(hours=24)).count(),
+            'critical_active': reports_qs.filter(ai_urgency_level='CRITICAL', status__in=['RAW', 'PROCESSED']).count(),
             'pending_verifications': FieldVerification.objects.filter(status='PENDING').count(),
             'active_agents': FieldAgent.objects.filter(is_active=True).count(),
         },
-        'top_threats': [{'id': r.id, 'category': r.issue_category, 'urgency': r.ai_urgency_level, 'location': r.lga.name if r.lga else 'Unknown', 'submitted': r.submitted_at.isoformat(), 'confidence': r.ai_confidence_score} for r in Report.objects.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'], status__in=['RAW', 'PROCESSED']).order_by('-submitted_at')[:5]],
+        'top_threats': [{'id': r.id, 'category': r.issue_category, 'urgency': r.ai_urgency_level, 'location': r.lga.name if r.lga else 'Unknown', 'submitted': r.submitted_at.isoformat(), 'confidence': r.ai_confidence_score} for r in reports_qs.filter(ai_urgency_level__in=['CRITICAL', 'HIGH'], status__in=['RAW', 'PROCESSED']).order_by('-submitted_at')[:5]],
         'generated_at': timezone.now().isoformat()
     })
+
+# ==========================================
+# ✅ AI SITREP GENERATION ENDPOINT (BULLETPROOF)
+# ==========================================
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def trigger_ai_sitrep(request):
-    """Manually trigger the AI to write a daily briefing (DEBUG MODE)."""
-    if not request.user.is_superuser:
-        return Response({"error": "Admin access only."}, status=status.HTTP_403_FORBIDDEN)
-        
     try:
-        # Import here to catch any import errors immediately
+        if not request.user.is_authenticated or not request.user.is_superuser:
+            return Response({"error": "Admin access only. Please log in."}, status=status.HTTP_403_FORBIDDEN)
+
         from .services.sitrep_generator import generate_daily_sitrep
         summary = generate_daily_sitrep()
         
@@ -526,7 +532,6 @@ def trigger_ai_sitrep(request):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        # THIS WILL SHOW THE EXACT ERROR ON YOUR SCREEN
         import traceback
         return Response({
             "status": "error", 
@@ -534,7 +539,81 @@ def trigger_ai_sitrep(request):
             "details": str(e),
             "traceback": traceback.format_exc()
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+# ==========================================
+# ✅ BARE METAL TEST ENDPOINT
+# ==========================================
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_bare_metal(request):
+    print("DEBUG: Bare metal endpoint called!")
+    return Response({
+        "status": "success",
+        "message": "Hello from Render! The server is alive and routing is working."
+    }) 
+    
+# ==========================================
+# ✅ AGENT LEADERBOARD ENDPOINT
+# ==========================================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def agent_leaderboard(request):
+    """Returns the top 20 agents and the current user's rank."""
+    try:
+        user = request.user
+        profiles_qs = UserProfile.objects.select_related('user').filter(user__is_active=True)
+        
+        # ✅ MULTI-TENANT FILTER FOR LEADERBOARD
+        if not user.is_superuser:
+            user_profile = getattr(user, 'intel_profile', None)
+            if user_profile and user_profile.state:
+                profiles_qs = profiles_qs.filter(state=user_profile.state)
 
+        top_profiles = profiles_qs.order_by('-total_points')[:20]
+        
+        leaderboard = []
+        for rank, profile in enumerate(top_profiles, start=1):
+            leaderboard.append({
+                'rank': rank,
+                'name': profile.user.first_name or profile.user.username,
+                'tier': profile.tier,
+                'points': profile.total_points,
+                'lifetime_points': profile.lifetime_points,
+                'state': profile.state
+            })
+            
+        current_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'total_points': 0,
+                'lifetime_points': 0,
+                'tier': 'CITIZEN'
+            }
+        )
+        
+        current_rank = profiles_qs.filter(
+            total_points__gt=current_profile.total_points
+        ).count() + 1
+        
+        return Response({
+            'status': 'success',
+            'current_user': {
+                'rank': current_rank,
+                'name': current_profile.user.first_name or current_profile.user.username,
+                'tier': current_profile.tier,
+                'points': current_profile.total_points,
+                'state': current_profile.state
+            },
+            'top_agents': leaderboard
+        })
+    except Exception as e:
+        import traceback
+        print(f"❌ Leaderboard Error: {e}")
+        print(traceback.format_exc())
+        return Response({
+            'status': 'error', 
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AgentRegistrationRequestView(APIView):
     permission_classes = [AllowAny]
@@ -552,7 +631,6 @@ class AgentRegistrationRequestView(APIView):
             print("❌ CRITICAL ERROR IN AGENT REGISTRATION:")
             traceback.print_exc()
             return Response({'error': 'Internal server error', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class AgentApprovalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -589,110 +667,3 @@ class AgentApprovalView(APIView):
             return Response({'status': 'rejected', 'message': 'Registration request rejected'})
         
         return Response({'error': 'Invalid action. Use "approve" or "reject"'}, status=status.HTTP_400_BAD_REQUEST)
-
-# ==========================================
-# ✅ AI SITREP GENERATION ENDPOINT (BULLETPROOF)
-# ==========================================
-@api_view(['GET'])
-@permission_classes([AllowAny]) # ✅ Allow access so we can test without logging in
-def trigger_ai_sitrep(request):
-    try:
-        # ✅ SAFE PERMISSION CHECK (Inside the try block)
-        if not request.user.is_authenticated or not request.user.is_superuser:
-            return Response({"error": "Admin access only. Please log in."}, status=status.HTTP_403_FORBIDDEN)
-
-        from .services.sitrep_generator import generate_daily_sitrep
-        summary = generate_daily_sitrep()
-        
-        if summary:
-            return Response({
-                "status": "success", 
-                "message": "SITREP Generated Successfully!", 
-                "summary_id": summary.id,
-                "content": summary.content if hasattr(summary, 'content') else "Summary saved."
-            })
-        else:
-            return Response({
-                "status": "error", 
-                "message": "generate_daily_sitrep() returned None. Check Render logs for '⚠️' or '❌'."
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    except Exception as e:
-        import traceback
-        return Response({
-            "status": "error", 
-            "message": "CRASH!",
-            "details": str(e),
-            "traceback": traceback.format_exc()
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-# ==========================================
-# ✅ BARE METAL TEST ENDPOINT
-# ==========================================
-@api_view(['GET'])
-@permission_classes([AllowAny]) # ✅ NO PERMISSIONS REQUIRED
-def test_bare_metal(request):
-    print("DEBUG: Bare metal endpoint called!")
-    return Response({
-        "status": "success",
-        "message": "Hello from Render! The server is alive and routing is working."
-    }) 
-    
-# ==========================================
-# ✅ AGENT LEADERBOARD ENDPOINT
-# ==========================================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def agent_leaderboard(request):
-    """Returns the top 20 agents and the current user's rank."""
-    try:
-        # Get top 20 profiles ordered by total points (descending)
-        # Use filter to exclude users without profiles
-        top_profiles = UserProfile.objects.select_related('user').filter(
-            user__is_active=True
-        ).order_by('-total_points')[:20]
-        
-        leaderboard = []
-        for rank, profile in enumerate(top_profiles, start=1):
-            leaderboard.append({
-                'rank': rank,
-                'name': profile.user.first_name or profile.user.username,
-                'tier': profile.tier,
-                'points': profile.total_points,
-                'lifetime_points': profile.lifetime_points,
-            })
-            
-        # ✅ SAFE: Get or create current user's profile
-        current_profile, created = UserProfile.objects.get_or_create(
-            user=request.user,
-            defaults={
-                'total_points': 0,
-                'lifetime_points': 0,
-                'tier': 'CITIZEN'
-            }
-        )
-        
-        # Calculate current user's approximate rank
-        # Count how many users have strictly MORE points than the current user, then add 1
-        current_rank = UserProfile.objects.filter(
-            total_points__gt=current_profile.total_points
-        ).count() + 1
-        
-        return Response({
-            'status': 'success',
-            'current_user': {
-                'rank': current_rank,
-                'name': current_profile.user.first_name or current_profile.user.username,
-                'tier': current_profile.tier,
-                'points': current_profile.total_points,
-            },
-            'top_agents': leaderboard
-        })
-    except Exception as e:
-        import traceback
-        print(f"❌ Leaderboard Error: {e}")
-        print(traceback.format_exc())
-        return Response({
-            'status': 'error', 
-            'message': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -2,7 +2,13 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.gis.db import models as gis_models
-from django.utils import timezone  # ✅ ADDED MISSING TIMEZONE IMPORT
+from django.utils import timezone
+
+STATE_CHOICES = [
+    ('TARABA', 'Taraba State'),
+    ('DELTA', 'Delta State'),
+    # Add more states here as we expand
+]
 
 # ==========================================
 # CORE INTELLIGENCE MODELS
@@ -10,7 +16,7 @@ from django.utils import timezone  # ✅ ADDED MISSING TIMEZONE IMPORT
 
 class LGA(models.Model):
     name = models.CharField(max_length=100)
-    state = models.CharField(max_length=100, default='Taraba')
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default='TARABA')
     population = models.IntegerField(default=0)
     boundary = gis_models.MultiPolygonField(srid=4326, null=True, blank=True)
 
@@ -18,7 +24,6 @@ class LGA(models.Model):
         return self.name
 
 class Report(models.Model):
-    # ✅ EXPLICITLY DEFINE ID AS UUID TO MATCH LIVE DATABASE
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     STATUS_CHOICES = [
@@ -36,6 +41,10 @@ class Report(models.Model):
 
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='reports')
     lga = models.ForeignKey(LGA, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # ✅ NEW: Multi-Tenant State Field
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default='TARABA')
+    
     issue_category = models.CharField(max_length=100)
     description = models.TextField()
     
@@ -58,8 +67,6 @@ class Report(models.Model):
     intel_quality_score = models.FloatField(default=0.0)
     points_awarded = models.IntegerField(default=0)
     acknowledgment_sent = models.BooleanField(default=False)
-    
-    # ✅ NEW: Auto-flagging tracker
     auto_flagged_critical = models.BooleanField(default=False, help_text="Auto-escalated by keyword detection")
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RAW')
@@ -72,11 +79,11 @@ class Report(models.Model):
     def __str__(self):
         return f"Report #{self.id} - {self.issue_category} ({self.status})"
 
-    # ✅ AUTO-ESCALATION LOGIC (ONLY ONE DEFINITION!)
     def save(self, *args, **kwargs):
         critical_keywords = [
             'armed', 'clash', 'gun', 'kidnap', 'bomb', 'suspicious', 
-            'attack', 'militia', 'herdsmen', 'fulani', 'assault', 'shooting'
+            'attack', 'militia', 'herdsmen', 'fulani', 'assault', 'shooting',
+            'cult', 'pipeline', 'vandalism', 'flooding' # Added Delta-specific keywords
         ]
         text_to_check = f"{self.issue_category} {self.description}".lower()
         
@@ -95,7 +102,6 @@ class FieldAgent(models.Model):
     def __str__(self):
         return f"{self.name} ({self.agent_id})"
 
-
 class FieldVerification(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
@@ -105,7 +111,6 @@ class FieldVerification(models.Model):
         ('FAILED', 'Failed'),
     ]
 
-    # ✅ NOW 'Report' IS DEFINED ABOVE, SO THIS WORKS PERFECTLY
     report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='verification')
     assigned_agent = models.ForeignKey(FieldAgent, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
@@ -130,8 +135,6 @@ class FieldVerification(models.Model):
         self.report.status = 'VERIFIED' if is_valid else 'REJECTED'
         self.report.save()
 
-
-
 class IntelligenceSummary(models.Model):
     title = models.CharField(max_length=255)
     content = models.TextField(blank=True, null=True)
@@ -143,9 +146,6 @@ class IntelligenceSummary(models.Model):
 
     def __str__(self):
         return self.title
-
-    
-
 
 class PatternAlert(models.Model):
     SEVERITY_CHOICES = [
@@ -161,8 +161,6 @@ class PatternAlert(models.Model):
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MEDIUM')
     detected_at = models.DateTimeField(auto_now_add=True)
     acknowledged = models.BooleanField(default=False)
-    
-    # ✅ NOW 'Report' IS DEFINED ABOVE, SO THIS WORKS PERFECTLY
     related_reports = models.ManyToManyField(Report, blank=True)
 
     class Meta:
@@ -170,7 +168,6 @@ class PatternAlert(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.severity})"
-
 
 # ==========================================
 # TARABAINSIGHT 2.0: HUMINT & REWARD SYSTEM
@@ -210,9 +207,9 @@ REDEMPTION_STATUS = [
     ('FULFILLED', 'Fulfilled'),
 ]
 
-
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='intel_profile')
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default='TARABA') 
     tier = models.CharField(max_length=20, choices=USER_TIERS, default='CITIZEN')
     total_points = models.IntegerField(default=0, help_text="Current available reward points")
     lifetime_points = models.IntegerField(default=0, help_text="Total points earned historically")
@@ -228,7 +225,6 @@ class UserProfile(models.Model):
         name = self.codename if self.use_codename and self.codename else self.user.username
         return f"{name} ({self.get_tier_display()}) - {self.total_points} pts"
 
-
 class RewardLedger(models.Model):
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='ledger_entries')
     transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPES)
@@ -243,7 +239,6 @@ class RewardLedger(models.Model):
 
     def __str__(self):
         return f"{self.user_profile} | {self.points} pts | {self.get_transaction_type_display()}"
-
 
 class RewardCatalog(models.Model):
     title = models.CharField(max_length=200)
@@ -272,7 +267,6 @@ class RewardCatalog(models.Model):
             return True
         return self.quantity_available > 0
 
-
 class Redemption(models.Model):
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='redemptions')
     reward = models.ForeignKey(RewardCatalog, on_delete=models.PROTECT, related_name='redemptions')
@@ -291,8 +285,6 @@ class Redemption(models.Model):
     def __str__(self):
         return f"{self.user_profile} redeemed {self.reward} ({self.status})"
 
-
-# ✅ 2. CLEAN, SINGLE DEFINITION OF AGENT REGISTRATION (AT THE BOTTOM)
 class AgentRegistrationRequest(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending Approval'),

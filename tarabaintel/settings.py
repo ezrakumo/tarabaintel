@@ -23,7 +23,8 @@ CSRF_COOKIE_SECURE = True
 
 # ✅ 3. INSTALLED APPS
 INSTALLED_APPS = [
-    "unfold",  # ✅ MUST BE BEFORE admin
+    'grappelli',  # ✅ MUST BE FIRST
+    "unfold",  # ✅ KEEP THIS FOR MIGRATION
     "unfold.contrib.filters",  # Optional: adds advanced filters
     "unfold.contrib.forms",    # Optional: adds advanced form widgets
     'django.contrib.admin',
@@ -117,6 +118,7 @@ USE_TZ = True
 # ✅ 8. STATIC FILES (Consolidated & Cleaned)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = []  # Empty for production
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # ✅ 9. CORS SETTINGS
@@ -245,3 +247,5 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
+# ✅ GRAPPELLI ADMIN THEME
+GRAPPELLI_ADMIN_TITLE = "TarabaInsight Command Center"

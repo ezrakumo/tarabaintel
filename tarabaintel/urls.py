@@ -4,20 +4,27 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from insight.views import (
-    # ... existing imports ...
-    agent_leaderboard, # ✅ ADD THIS
-)
 from rest_framework.routers import DefaultRouter
 
-# ✅ 1. IMPORT ALL VIEWS
+# ✅ 1. IMPORT ALL VIEWS CLEANLY
 from insight.views import (
-    AgentRegistrationRequestView, AgentApprovalView,
-    intelligence_briefing_dashboard, ReportViewSet, FieldVerificationViewSet,
-    test_ai_engine, rewards_dashboard_api, trigger_weekly_forecast,
-    predictive_hotspots, debug_rewards, RedeemRewardView,
-    agent_performance_analytics, generate_intelligence_briefing,
-    stakeholder_dashboard, trigger_ai_sitrep, test_bare_metal # ✅ ADDED test_bare_metal
+    AgentRegistrationRequestView, 
+    AgentApprovalView,
+    intelligence_briefing_dashboard, 
+    ReportViewSet, 
+    FieldVerificationViewSet,
+    test_ai_engine, 
+    rewards_dashboard_api, 
+    trigger_weekly_forecast,
+    predictive_hotspots, 
+    debug_rewards, 
+    RedeemRewardView,
+    agent_performance_analytics, 
+    generate_intelligence_briefing,
+    stakeholder_dashboard, 
+    trigger_ai_sitrep, 
+    test_bare_metal,
+    agent_leaderboard, # ✅ ADDED
 )
 
 # ✅ 2. SAFE IMPORT FOR ACCOUNTS APP
@@ -32,48 +39,50 @@ router = DefaultRouter()
 router.register(r'reports', ReportViewSet, basename='report')
 router.register(r'field-verifications', FieldVerificationViewSet, basename='field-verification')
 
+# ✅ 4. UNIFIED URL PATTERNS
 urlpatterns = [
-    # ADMIN
+    # ADMIN & GRAPPELLI (Grappelli MUST be before admin)
+    path('grappelli/', include('grappelli.urls')),
     path('admin/', admin.site.urls),
     
-    # ✅ 4. AUTH ROUTES
+    # AUTH ROUTES
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_login_legacy'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh_legacy'),
     
-    # ✅ 5. ROUTER URLS
+    # ROUTER URLS
     path('api/', include(router.urls)),
     
-    # ✅ 6. REWARDS & UTILITIES
+    # REWARDS & UTILITIES
     path('api/rewards/redeem/', RedeemRewardView.as_view(), name='redeem-reward'),
     path('api/rewards/dashboard/', rewards_dashboard_api, name='rewards-dashboard-api'),
     path('api/debug-rewards/', debug_rewards, name='debug-rewards'),
     
-    # ✅ 7. AI & PREDICTIONS
+    # AI & PREDICTIONS
     path('api/cron/weekly-forecast/', trigger_weekly_forecast, name='weekly-forecast-cron'),
     path('api/predictive-hotspots/', predictive_hotspots, name='predictive-hotspots'),
     path('api/test-ai/', test_ai_engine, name='test-ai'),
     
-    # ✅ 8. ANALYTICS & INTELLIGENCE
+    # ANALYTICS & INTELLIGENCE
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
+    path('api/analytics/leaderboard/', agent_leaderboard, name='agent-leaderboard'), # ✅ ADDED
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
     path('api/intelligence/generate-sitrep/', trigger_ai_sitrep, name='generate-sitrep'),
     
-    # ✅ 9. AGENT REGISTRATION
+    # AGENT REGISTRATION
     path('api/agents/register/', AgentRegistrationRequestView.as_view(), name='agent-register'),
     path('api/agents/approve/', AgentApprovalView.as_view(), name='agent-approve'),
-    path('api/analytics/leaderboard/', agent_leaderboard, name='agent-leaderboard'),
     
-    # ✅ 10. MAIN DASHBOARD
+    # MAIN DASHBOARD
     path('', intelligence_briefing_dashboard, name='dashboard'),
 
-    # ✅ 11. BARE METAL TEST
+    # BARE METAL TEST
     path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
 ]
 
-# ✅ 12. CONDITIONALLY ADD ACCOUNTS ROUTES
+# ✅ 5. CONDITIONALLY ADD ACCOUNTS ROUTES
 if HAS_ACCOUNTS_APP:
     urlpatterns += [
         path('api/auth/register/', RegisterView.as_view(), name='register'),

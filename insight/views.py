@@ -61,8 +61,24 @@ class ReportViewSet(viewsets.ModelViewSet):
         
         return Report.objects.none()
 
+    # ✅ THIS OVERRIDES THE DEFAULT CREATE TO CATCH AND REVEAL ANY HIDDEN ERRORS
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"❌❌❌ CRITICAL ERROR IN REPORT CREATION: {e}")
+            print(error_details)
+            # Return the actual error to the frontend so we can see it!
+            return Response({
+                "error": "Server Crash",
+                "details": error_details
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def perform_create(self, serializer):
         import base64
+        import traceback
         from .services.audio_transcriber import transcribe_and_translate_audio
 
         try:
@@ -71,7 +87,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             audio_base64 = self.request.data.get('audio_base64')
             report_state = self.request.data.get('state', 'TARABA')
             
-            # ✅ THIS IS WHERE IT LIKELY CRASHES IF THE MIGRATION IS MISSING ON RENDER
+            # ✅ SAVE REPORT WITH STATE
             report = serializer.save(
                 status='RAW', 
                 submitted_by=self.request.user,
@@ -188,24 +204,9 @@ class ReportViewSet(viewsets.ModelViewSet):
                 FieldVerification.objects.create(report=report, status='PENDING')
 
         except Exception as e:
-            # ✅ THIS IS THE MAGIC LINE THAT WILL FINALLY SHOW US THE EXACT ERROR IN RENDER LOGS!
             print(f"❌❌❌ CRITICAL ERROR IN perform_create: {e}")
             print(traceback.format_exc())
-            raise  # Re-raise so DRF returns a 500, but NOW WE HAVE THE LOGS!
-
-    @action(detail=False, methods=['get'])
-    def export_csv(self, request):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="intelligence_export.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Report ID', 'State', 'Submitted At', 'LGA', 'Category', 'Urgency Level', 'Description'])
-        for report in self.get_queryset():
-            writer.writerow([
-                str(report.id), report.state, report.submitted_at.strftime('%Y-%m-%d %H:%M:%S'),
-                report.lga.name if report.lga else 'Unknown', report.issue_category,
-                report.ai_urgency_level, report.description
-            ])
-        return response
+            raise
 
 class FieldVerificationViewSet(viewsets.ModelViewSet):
     serializer_class = FieldVerificationSerializer

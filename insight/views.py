@@ -70,7 +70,6 @@ class ReportViewSet(viewsets.ModelViewSet):
             error_details = traceback.format_exc()
             print(f"❌❌❌ CRITICAL ERROR IN REPORT CREATION: {e}")
             print(error_details)
-            # Return the actual error to the frontend so we can see it!
             return Response({
                 "error": "Server Crash",
                 "details": error_details
@@ -122,14 +121,45 @@ class ReportViewSet(viewsets.ModelViewSet):
                 except Exception as audio_error:
                     print(f"❌ Audio processing failed: {audio_error}")
 
-            # ✅ LGA COORDINATES SAFELY
+            # ✅ COMPREHENSIVE LGA COORDINATES (TARABA & DELTA)
             lga_coords = {
+                # Taraba State LGAs
                 'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
                 'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
                 'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
                 'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
-                'Asaba': (5.5167, 6.7333), 'Warri': (5.5167, 5.7500),
-                'Ughelli': (5.4833, 6.0000), 'Sapele': (5.8833, 6.6667),
+                'Zing': (8.0833, 11.7500), 'Yorro': (9.0833, 11.3667),
+                'Ardo Kola': (8.8167, 11.0833), 'Donga': (8.0833, 10.1500),
+                'Gashaka': (7.3167, 11.7500), 'Ila': (7.6500, 10.6167),
+                'Kurmi': (7.5833, 10.0833), 'Lau': (8.8833, 11.3667),
+                'Ussa': (7.8833, 9.2833),
+                
+                # Delta State LGAs
+                'Asaba': (5.5167, 6.7333),                # Oshimili South
+                'Warri': (5.5167, 5.7500),                # Warri South
+                'Sapele': (5.8833, 6.6667),
+                'Ughelli': (5.4833, 6.0000),              # Ughelli North
+                'Agbor': (6.2500, 6.2000),                # Ika North East
+                'Kwale': (5.6667, 6.1667),                # Ndokwa West
+                'Ogwashi-Uku': (6.1833, 6.5000),          # Aniocha North
+                'Abraka': (5.8000, 6.1167),               # Ethiope East
+                'Koko': (5.6833, 5.8167),                 # Ethiope West
+                'Isoko': (5.6167, 6.2833),                # Isoko North
+                'Ozoro': (5.5333, 6.3333),                # Isoko South
+                'Patani': (5.5167, 6.0833),
+                'Burutu': (5.5333, 5.5500),
+                'Bomadi': (5.5167, 5.9167),
+                'Effurun': (5.5833, 5.7833),              # Uvwie
+                'Ukwuani': (5.7500, 6.3500),
+                'Akuku': (5.6000, 6.7500),                # Oshimili North
+                'Onicha-Ugbo': (6.1500, 6.5500),          # Aniocha South
+                'Idumuje-Ugboko': (6.1833, 6.3333),       # Ika South
+                'Abbi': (5.7500, 6.2500),                 # Ndokwa East
+                'Ogor': (5.6167, 5.7167),                 # Warri North
+                'Ogidigben': (5.5000, 5.6833),            # Warri South West
+                'Otor-Udu': (5.4500, 6.0167),             # Ughelli South
+                'Udu': (5.5667, 5.7667),
+                'Orerokpe': (5.7167, 5.9500),             # Okpe
             }
             
             lat, lon = 8.8833, 11.3667

@@ -79,7 +79,14 @@ class ReportViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         import base64
         import traceback
-        from .services.audio_transcriber import transcribe_and_translate_audio
+
+        # ✅ SAFE IMPORT: If the file is missing, it won't crash the whole app
+        try:
+            from .services.audio_transcriber import transcribe_and_translate_audio
+            HAS_AUDIO_TRANSCRIBER = True
+        except ImportError:
+            HAS_AUDIO_TRANSCRIBER = False
+            print("⚠️ Audio transcriber module not found. Skipping audio processing.")
 
         try:
             print(f"🚀 Starting report creation for user: {self.request.user}")
@@ -95,8 +102,8 @@ class ReportViewSet(viewsets.ModelViewSet):
             )
             print(f"💾 Report {report.id} saved successfully for state: {report_state}")
             
-            # ✅ PROCESS AUDIO SAFELY
-            if audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
+            # ✅ PROCESS AUDIO SAFELY (Only if module exists and audio is present)
+            if HAS_AUDIO_TRANSCRIBER and audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
                 try:
                     print("🎤 Processing audio...")
                     audio_data = base64.b64decode(audio_base64)

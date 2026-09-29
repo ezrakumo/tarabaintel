@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
-    'django.contrib.gis',
     'corsheaders',
     'channels',
     
@@ -172,56 +171,7 @@ CHANNEL_LAYERS = {
     }
 }
 
-   # ==========================================
-   # ✅ JAZZMIN MODERN ADMIN THEME CONFIGURATION
-   # ==========================================
-   JAZZMIN_SETTINGS = {
-       "site_title": "NigeriaInsight Admin",
-       "site_header": "NigeriaInsight",
-       "site_brand": "National Intelligence Command",
-       "welcome_sign": "Welcome to the NigeriaInsight Command Center",
-       "copyright": "NigeriaInsight 2026",
-       "search_model": ["auth.User", "insight.UserProfile", "insight.Report"],
-       "user_avatar": None,
-       
-       # ✅ TOP MENU (Keep it clean)
-       "topmenu_links": [
-           {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-           {"name": "Users", "url": "admin:auth_user_changelist"},
-           {"name": "Support", "url": "https://github.com/farridav/django-jazzmin/issues", "new_window": True},
-       ],
-       
-       # ✅ SIDEBAR (Organize by function)
-       "show_sidebar": True,
-       "navigation_expanded": True,
-       "hide_apps": [],
-       "hide_models": [],
-       "order_with_respect_to": [
-           "insight.Report",
-           "insight.FieldVerification",
-           "insight.AgentRegistrationRequest",
-           "insight.UserProfile",
-           "insight.FieldAgent",
-           "auth",
-       ],
-       
-       # ✅ MODERN DARK THEME WITH GOLD ACCENTS (Matching your Flutter App)
-       "custom_css": None,
-       "custom_js": None,
-       "use_google_fonts_cdn": True,
-       "show_ui_builder": False,
-       
-       "changeform_format": "horizontal_tabs",
-       "changeform_format_overrides": {
-           "auth.user": "collapsible",
-           "auth.group": "vertical_tabs",
-       },
-       
-       # Colors matching your app: Dark background, Gold/Yellow primary
-       "related_modal_active": True,
-   }
-
-  # ==========================================
+# ==========================================
 # ✅ JAZZMIN MODERN ADMIN THEME CONFIGURATION
 # ==========================================
 JAZZMIN_SETTINGS = {

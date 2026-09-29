@@ -221,34 +221,67 @@ CHANNEL_LAYERS = {
        "related_modal_active": True,
    }
 
-   JAZZMIN_UI_TWEAKS = {
-       "navbar_small_text": False,
-       "footer_small_text": False,
-       "body_small_text": False,
-       "brand_small_text": False,
-       "brand_colour": "navbar-dark",
-       "accent": "accent-warning", # ✅ Gold/Yellow accent
-       "navbar": "navbar-dark navbar-primary",
-       "no_navbar_border": False,
-       "navbar_fixed": True,
-       "layout_boxed": False,
-       "footer_fixed": False,
-       "sidebar_fixed": True,
-       "sidebar": "sidebar-dark-primary",
-       "sidebar_nav_small_text": False,
-       "sidebar_disable_expand": False,
-       "sidebar_nav_child_indent": True,
-       "sidebar_nav_compact_style": False,
-       "sidebar_nav_legacy_style": False,
-       "sidebar_nav_flat_style": False,
-       "theme": "darkly", # ✅ Modern Dark Theme
-       "dark_mode_theme": "darkly",
-       "button_classes": {
-           "primary": "btn-warning",
-           "secondary": "btn-outline-secondary",
-           "info": "btn-info",
-           "warning": "btn-warning",
-           "danger": "btn-danger",
-           "success": "btn-success"
-       }
-   }
+  # ==========================================
+# ✅ JAZZMIN MODERN ADMIN THEME CONFIGURATION
+# ==========================================
+JAZZMIN_SETTINGS = {
+    "site_title": "NigeriaInsight Admin",
+    "site_header": "NigeriaInsight",
+    "site_brand": "National Intelligence Command",
+    "welcome_sign": "Welcome to the NigeriaInsight Command Center",
+    "copyright": "NigeriaInsight 2026",
+    "search_model": ["auth.User", "insight.UserProfile", "insight.Report"],
+    "user_avatar": None,
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Users", "url": "admin:auth_user_changelist"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "order_with_respect_to": [
+        "insight.Report",
+        "insight.FieldVerification",
+        "insight.AgentRegistrationRequest",
+        "insight.UserProfile",
+        "insight.FieldAgent",
+        "auth",
+    ],
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "auth.user": "collapsible",
+        "auth.group": "vertical_tabs",
+    },
+    "related_modal_active": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-warning",
+    "navbar": "navbar-dark navbar-primary",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-warning",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
+}

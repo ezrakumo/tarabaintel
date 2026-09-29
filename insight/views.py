@@ -65,130 +65,133 @@ class ReportViewSet(viewsets.ModelViewSet):
         import base64
         from .services.audio_transcriber import transcribe_and_translate_audio
 
-        print(f"🚀 Starting report creation for user: {self.request.user}")
-        
-        audio_base64 = self.request.data.get('audio_base64')
-        # ✅ EXTRACT STATE FROM REQUEST
-        report_state = self.request.data.get('state', 'TARABA')
-        
-        # ✅ SAVE REPORT WITH STATE
-        report = serializer.save(
-            status='RAW', 
-            submitted_by=self.request.user,
-            state=report_state
-        )
-        print(f"💾 Report {report.id} saved to database successfully for state: {report_state}")
-        
-        # ✅ PROCESS AUDIO
-        if audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
-            try:
-                print("🎤 Audio base64 detected. Decoding and transcribing...")
-                audio_data = base64.b64decode(audio_base64)
-                temp_audio_path = f"/tmp/report_audio_{report.id}.m4a"
-                
-                with open(temp_audio_path, "wb") as f:
-                    f.write(audio_data)
-                
-                translated_text = transcribe_and_translate_audio(temp_audio_path)
-                
-                if not translated_text.startswith("Error:"):
-                    original_desc = report.description or "No text provided"
-                    report.description = f"[VOICE NOTE TRANSLATION]: {translated_text}\n\n[ORIGINAL TEXT]: {original_desc}"
-                    report.save(update_fields=['description'])
-                    print("✅ Voice note successfully translated and appended to report!")
-                else:
-                    print(f"️ {translated_text}")
-                    
-                if os.path.exists(temp_audio_path):
-                    os.remove(temp_audio_path)
-            except Exception as audio_error:
-                print(f"❌ Failed to process audio: {audio_error}")
-
-        # ✅ LGA COORDINATES
-        lga_coords = {
-            'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
-            'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
-            'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
-            'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
-            # Delta State LGAs
-            'Asaba': (5.5167, 6.7333), 'Warri': (5.5167, 5.7500),
-            'Ughelli': (5.4833, 6.0000), 'Sapele': (5.8833, 6.6667),
-        }
-        
-        lat, lon = 8.8833, 11.3667
-        
-        if report.location:
-            try:
-                coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
-                lon, lat = float(coords[0]), float(coords[1])
-            except Exception as e:
-                print(f"⚠️ Could not parse GPS: {e}")
-        elif report.lga and report.lga.name in lga_coords:
-            lat, lon = lga_coords[report.lga.name]
-            if hasattr(report, 'lat') and hasattr(report, 'lon'):
-                report.lat = lat
-                report.lon = lon
-            report.location = Point(lon, lat)
-            
-            update_fields = ['location']
-            if hasattr(report, 'lat') and hasattr(report, 'lon'):
-                update_fields.extend(['lat', 'lon'])
-            report.save(update_fields=update_fields)
-
-        # ✅ WEBSOCKET BROADCAST
-        channel_layer = get_channel_layer()
         try:
-            async_to_sync(channel_layer.group_send)(
-                'intelligence_feed',
-                {
-                    'type': 'new_threat',
-                    'report': {
-                        'id': str(report.id),
-                        'category': report.issue_category or 'UNKNOWN',
-                        'urgency': 'MODERATE',
-                        'description': report.description,
-                        'lat': lat, 'lon': lon
-                    }
-                }
+            print(f"🚀 Starting report creation for user: {self.request.user}")
+            
+            audio_base64 = self.request.data.get('audio_base64')
+            report_state = self.request.data.get('state', 'TARABA')
+            
+            # ✅ THIS IS WHERE IT LIKELY CRASHES IF THE MIGRATION IS MISSING ON RENDER
+            report = serializer.save(
+                status='RAW', 
+                submitted_by=self.request.user,
+                state=report_state
             )
-        except Exception as ws_error:
-            print(f"❌ WebSocket broadcast FAILED: {ws_error}")
-
-        # ✅ AI SERVICE CALL
-        try:
-            ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
-            response = requests.post(f"{ai_base_url}/analyze", json={
-                "report_id": str(report.id), 
-                "description": report.description,
-                "issue_category": report.issue_category, 
-                "image_base64": report.image_base64,
-            }, timeout=15)
+            print(f"💾 Report {report.id} saved successfully for state: {report_state}")
             
-            if response.status_code == 200:
-                ai_data = response.json()
-                report.ai_suggested_category = ai_data.get('ai_suggested_category', '')
-                report.ai_confidence_score = float(ai_data.get('ai_confidence_score', 0.0))
-                report.ai_sentiment = ai_data.get('sentiment', '')
-                report.ai_urgency_level = ai_data.get('urgency_level', 'MODERATE')
-                report.ai_extracted_entities = ai_data.get('extracted_entities', {})
+            # ✅ PROCESS AUDIO SAFELY
+            if audio_base64 and isinstance(audio_base64, str) and len(audio_base64) > 100:
+                try:
+                    print("🎤 Processing audio...")
+                    audio_data = base64.b64decode(audio_base64)
+                    temp_audio_path = f"/tmp/report_audio_{report.id}.m4a"
+                    with open(temp_audio_path, "wb") as f:
+                        f.write(audio_data)
+                    
+                    translated_text = transcribe_and_translate_audio(temp_audio_path)
+                    if not translated_text.startswith("Error:"):
+                        original_desc = report.description or "No text provided"
+                        report.description = f"[VOICE NOTE TRANSLATION]: {translated_text}\n\n[ORIGINAL TEXT]: {original_desc}"
+                        report.save(update_fields=['description'])
+                    
+                    if os.path.exists(temp_audio_path):
+                        os.remove(temp_audio_path)
+                except Exception as audio_error:
+                    print(f"❌ Audio processing failed: {audio_error}")
+
+            # ✅ LGA COORDINATES SAFELY
+            lga_coords = {
+                'Jalingo': (8.8833, 11.3667), 'Wukari': (7.8714, 9.7833),
+                'Gembu': (6.7333, 11.2667), 'Bali': (7.8667, 10.9833),
+                'Takum': (7.2333, 10.4167), 'Ibi': (7.4833, 9.7500),
+                'Sardauna': (7.0833, 11.5833), 'Karim Lamido': (9.4833, 11.1167),
+                'Asaba': (5.5167, 6.7333), 'Warri': (5.5167, 5.7500),
+                'Ughelli': (5.4833, 6.0000), 'Sapele': (5.8833, 6.6667),
+            }
+            
+            lat, lon = 8.8833, 11.3667
+            
+            if report.location:
+                try:
+                    coords = report.location.wkt.replace('POINT (', '').replace(')', '').split(' ')
+                    lon, lat = float(coords[0]), float(coords[1])
+                except Exception as e:
+                    print(f"⚠️ Could not parse GPS: {e}")
+            elif report.lga and hasattr(report.lga, 'name') and report.lga.name in lga_coords:
+                lat, lon = lga_coords[report.lga.name]
+                if hasattr(report, 'lat') and hasattr(report, 'lon'):
+                    report.lat = lat
+                    report.lon = lon
+                report.location = Point(lon, lat)
+                
+                update_fields = ['location']
+                if hasattr(report, 'lat') and hasattr(report, 'lon'):
+                    update_fields.extend(['lat', 'lon'])
+                report.save(update_fields=update_fields)
+
+            # ✅ WEBSOCKET BROADCAST SAFELY
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                try:
+                    async_to_sync(channel_layer.group_send)(
+                        'intelligence_feed',
+                        {
+                            'type': 'new_threat',
+                            'report': {
+                                'id': str(report.id),
+                                'category': report.issue_category or 'UNKNOWN',
+                                'urgency': 'MODERATE',
+                                'description': report.description,
+                                'lat': lat, 'lon': lon
+                            }
+                        }
+                    )
+                except Exception as ws_error:
+                    print(f"❌ WebSocket broadcast FAILED: {ws_error}")
+
+            # ✅ AI SERVICE CALL SAFELY
+            try:
+                ai_base_url = os.environ.get('AI_SERVICE_URL', 'http://127.0.0.1:8001')
+                response = requests.post(f"{ai_base_url}/analyze", json={
+                    "report_id": str(report.id), 
+                    "description": report.description,
+                    "issue_category": report.issue_category, 
+                    "image_base64": report.image_base64,
+                }, timeout=15)
+                
+                if response.status_code == 200:
+                    ai_data = response.json()
+                    report.ai_suggested_category = ai_data.get('ai_suggested_category', '')
+                    report.ai_confidence_score = float(ai_data.get('ai_confidence_score', 0.0))
+                    report.ai_sentiment = ai_data.get('sentiment', '')
+                    report.ai_urgency_level = ai_data.get('urgency_level', 'MODERATE')
+                    report.ai_extracted_entities = ai_data.get('extracted_entities', {})
+                    report.status = 'PROCESSED'
+                    report.save()
+            except Exception as e:
+                print(f"⚠️ AI Service unavailable ({e}). Applying default grading.")
+                report.ai_urgency_level = 'MODERATE'
+                report.ai_confidence_score = 0.5
                 report.status = 'PROCESSED'
                 report.save()
+
+            # ✅ GRADING SAFELY
+            try:
+                from insight.services.quality_grader import grade_and_reward_report
+                grade_and_reward_report(report)
+            except Exception as grade_error:
+                print(f"❌ Grading failed: {grade_error}")
+
+            # ✅ AUTO-CREATE VERIFICATION SAFELY
+            if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
+                from .models import FieldVerification
+                FieldVerification.objects.create(report=report, status='PENDING')
+
         except Exception as e:
-            print(f"⚠️ AI Service unavailable ({e}). Applying default grading.")
-            report.ai_urgency_level = 'MODERATE'
-            report.ai_confidence_score = 0.5
-            report.status = 'PROCESSED'
-            report.save()
-
-        # ✅ GRADING & REWARDS
-        try:
-            grade_and_reward_report(report)
-        except Exception as grade_error:
-            print(f"❌ Grading failed: {grade_error}")
-
-        # ✅ AUTO-CREATE VERIFICATION
-        if report.ai_urgency_level in ['CRITICAL', 'HIGH']:
-            FieldVerification.objects.create(report=report, status='PENDING')
+            # ✅ THIS IS THE MAGIC LINE THAT WILL FINALLY SHOW US THE EXACT ERROR IN RENDER LOGS!
+            print(f"❌❌❌ CRITICAL ERROR IN perform_create: {e}")
+            print(traceback.format_exc())
+            raise  # Re-raise so DRF returns a 500, but NOW WE HAVE THE LOGS!
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
@@ -350,7 +353,7 @@ def rewards_dashboard_api(request):
             'nextTier': next_tier, 'pointsToNextTier': max(0, points_to_next),
         })
     except Exception as e:
-        print(f" DASHBOARD API ERROR: {e}")
+        print(f"❌ DASHBOARD API ERROR: {e}")
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
 class RedeemRewardView(APIView):

@@ -24,7 +24,7 @@ from insight.views import (
     stakeholder_dashboard, 
     trigger_ai_sitrep, 
     test_bare_metal,
-    agent_leaderboard, # ✅ ADDED
+    agent_leaderboard,
 )
 
 # ✅ 2. SAFE IMPORT FOR ACCOUNTS APP
@@ -41,8 +41,7 @@ router.register(r'field-verifications', FieldVerificationViewSet, basename='fiel
 
 # ✅ 4. UNIFIED URL PATTERNS
 urlpatterns = [
-    # ADMIN & GRAPPELLI (Grappelli MUST be before admin)
-    
+    # ✅ ADMIN (Clean, no grappelli)
     path('admin/', admin.site.urls),
     
     # AUTH ROUTES
@@ -66,7 +65,7 @@ urlpatterns = [
     
     # ANALYTICS & INTELLIGENCE
     path('api/analytics/agent-performance/', agent_performance_analytics, name='agent-performance'),
-    path('api/analytics/leaderboard/', agent_leaderboard, name='agent-leaderboard'), # ✅ ADDED
+    path('api/analytics/leaderboard/', agent_leaderboard, name='agent-leaderboard'),
     path('api/intelligence/briefing/', generate_intelligence_briefing, name='intelligence-briefing'),
     path('api/intelligence/stakeholder-dashboard/', stakeholder_dashboard, name='stakeholder-dashboard'),
     path('api/intelligence/generate-sitrep/', trigger_ai_sitrep, name='generate-sitrep'),
@@ -80,10 +79,6 @@ urlpatterns = [
 
     # BARE METAL TEST
     path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
-    path('admin/', admin.site.urls),
-    
-      
-    
 ]
 
 # ✅ 5. CONDITIONALLY ADD ACCOUNTS ROUTES

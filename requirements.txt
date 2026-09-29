@@ -4,7 +4,6 @@ djangorestframework-simplejwt>=5.3.0
 django-cors-headers>=4.3
 django-filter>=24.2
 psycopg2-binary>=2.9
-gunicorn>=22.0
 requests>=2.31
 channels>=4.0
 uvicorn

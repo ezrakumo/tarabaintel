@@ -42,7 +42,7 @@ router.register(r'field-verifications', FieldVerificationViewSet, basename='fiel
 # ✅ 4. UNIFIED URL PATTERNS
 urlpatterns = [
     # ADMIN & GRAPPELLI (Grappelli MUST be before admin)
-    path('grappelli/', include('grappelli.urls')),
+    
     path('admin/', admin.site.urls),
     
     # AUTH ROUTES
@@ -80,6 +80,10 @@ urlpatterns = [
 
     # BARE METAL TEST
     path('api/test-bare-metal/', test_bare_metal, name='test-bare-metal'),
+    path('admin/', admin.site.urls),
+    
+      
+    
 ]
 
 # ✅ 5. CONDITIONALLY ADD ACCOUNTS ROUTES

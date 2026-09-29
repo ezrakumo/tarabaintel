@@ -23,7 +23,7 @@ CSRF_COOKIE_SECURE = True
 
 # ✅ 3. INSTALLED APPS
 INSTALLED_APPS = [
-    'grappelli',  # ✅ MUST BE FIRST!
+    'jazzmin', # ✅ MUST BE BEFORE django.contrib.admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
+    'django.contrib.gis', # ✅ For GeoDjango
     
     # Third-party
     'rest_framework',
@@ -171,7 +172,83 @@ CHANNEL_LAYERS = {
     }
 }
 
-# ==========================================
-# ✅ 13. GRAPPELLI ADMIN THEME CONFIGURATION
-# ==========================================
-GRAPPELLI_ADMIN_TITLE = "TarabaInsight Command Center"
+   # ==========================================
+   # ✅ JAZZMIN MODERN ADMIN THEME CONFIGURATION
+   # ==========================================
+   JAZZMIN_SETTINGS = {
+       "site_title": "NigeriaInsight Admin",
+       "site_header": "NigeriaInsight",
+       "site_brand": "National Intelligence Command",
+       "welcome_sign": "Welcome to the NigeriaInsight Command Center",
+       "copyright": "NigeriaInsight 2026",
+       "search_model": ["auth.User", "insight.UserProfile", "insight.Report"],
+       "user_avatar": None,
+       
+       # ✅ TOP MENU (Keep it clean)
+       "topmenu_links": [
+           {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+           {"name": "Users", "url": "admin:auth_user_changelist"},
+           {"name": "Support", "url": "https://github.com/farridav/django-jazzmin/issues", "new_window": True},
+       ],
+       
+       # ✅ SIDEBAR (Organize by function)
+       "show_sidebar": True,
+       "navigation_expanded": True,
+       "hide_apps": [],
+       "hide_models": [],
+       "order_with_respect_to": [
+           "insight.Report",
+           "insight.FieldVerification",
+           "insight.AgentRegistrationRequest",
+           "insight.UserProfile",
+           "insight.FieldAgent",
+           "auth",
+       ],
+       
+       # ✅ MODERN DARK THEME WITH GOLD ACCENTS (Matching your Flutter App)
+       "custom_css": None,
+       "custom_js": None,
+       "use_google_fonts_cdn": True,
+       "show_ui_builder": False,
+       
+       "changeform_format": "horizontal_tabs",
+       "changeform_format_overrides": {
+           "auth.user": "collapsible",
+           "auth.group": "vertical_tabs",
+       },
+       
+       # Colors matching your app: Dark background, Gold/Yellow primary
+       "related_modal_active": True,
+   }
+
+   JAZZMIN_UI_TWEAKS = {
+       "navbar_small_text": False,
+       "footer_small_text": False,
+       "body_small_text": False,
+       "brand_small_text": False,
+       "brand_colour": "navbar-dark",
+       "accent": "accent-warning", # ✅ Gold/Yellow accent
+       "navbar": "navbar-dark navbar-primary",
+       "no_navbar_border": False,
+       "navbar_fixed": True,
+       "layout_boxed": False,
+       "footer_fixed": False,
+       "sidebar_fixed": True,
+       "sidebar": "sidebar-dark-primary",
+       "sidebar_nav_small_text": False,
+       "sidebar_disable_expand": False,
+       "sidebar_nav_child_indent": True,
+       "sidebar_nav_compact_style": False,
+       "sidebar_nav_legacy_style": False,
+       "sidebar_nav_flat_style": False,
+       "theme": "darkly", # ✅ Modern Dark Theme
+       "dark_mode_theme": "darkly",
+       "button_classes": {
+           "primary": "btn-warning",
+           "secondary": "btn-outline-secondary",
+           "info": "btn-info",
+           "warning": "btn-warning",
+           "danger": "btn-danger",
+           "success": "btn-success"
+       }
+   }

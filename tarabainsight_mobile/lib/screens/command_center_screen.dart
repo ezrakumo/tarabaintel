@@ -22,9 +22,46 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   final MapController _mapController = MapController();
   List<Hotspot> _hotspots = [];
 
+  // ✅ DYNAMIC STATE CENTERING
+  String _userState = 'TARABA';
+  LatLng _initialCenter = const LatLng(8.8833, 11.3667);
+  double _initialZoom = 8.0;
+
   @override
   void initState() {
     super.initState();
+    _loadUserStateAndInit();
+  }
+
+  Future<void> _loadUserStateAndInit() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? state = prefs.getString('user_state');
+
+    // ✅ DYNAMICALLY SET MAP CENTER BASED ON THE ACTUAL LOGGED-IN USER'S STATE
+    // If 'user_state' is missing in storage, it safely defaults to 'TARABA'
+    String targetState = state ?? 'TARABA'; 
+    
+    if (targetState == 'DELTA') {
+      _userState = 'DELTA';
+      _initialCenter = const LatLng(5.8000, 6.0000); // Approximate center of Delta State
+      _initialZoom = 8.5;
+    } else {
+      _userState = 'TARABA';
+      _initialCenter = const LatLng(8.8833, 11.3667); // Approximate center of Taraba State
+      _initialZoom = 8.0;
+    }
+    
+    if (mounted) {
+      setState(() {}); // Update UI variables
+      
+      // ✅ CRITICAL FIX: Force the map controller to physically move to the new center!
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          _mapController.move(_initialCenter, _initialZoom);
+        }
+      });
+    }
+
     _connectWebSocket();
     _fetchPredictiveHotspots();
   }
@@ -113,7 +150,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       Color circleColor;
       Color borderColor;
       
-      switch (hotspot.threatLevel) {
+      switch (hotspot.severity) {
         case 'CRITICAL':
           circleColor = Colors.red.withOpacity(0.4);
           borderColor = Colors.red;
@@ -127,14 +164,12 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           borderColor = Colors.yellow;
       }
       
-      double radiusInPixels = (hotspot.radiusKm * 100).clamp(50.0, 300.0);
-      
       return CircleMarker(
-        point: LatLng(hotspot.centerLat, hotspot.centerLon),
-        radius: radiusInPixels,
+        point: LatLng(hotspot.lat, hotspot.lon),
+        radius: 60.0, // Fixed radius for clear visibility on the map
         color: circleColor,
         borderColor: borderColor,
-        borderStrokeWidth: 3,
+        borderStrokeWidth: 2,
       );
     }).toList();
   }
@@ -157,7 +192,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E17),
       appBar: AppBar(
-        title: const Text('Taraba Command Center', style: TextStyle(fontWeight: FontWeight.bold)),
+        // ✅ DYNAMIC TITLE BASED ON STATE
+        title: Text('$_userState Command Center', style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF1F2937),
         elevation: 0,
         actions: [
@@ -207,10 +243,11 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         children: [
           // 1. BASE LAYER: THE MAP
           FlutterMap(
+            key: ValueKey(_userState), // ✅ FORCES COMPLETE REBUILD WHEN STATE CHANGES
             mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(8.8833, 11.3667),
-              initialZoom: 8,
+            options: MapOptions(
+              initialCenter: _initialCenter, // ✅ DYNAMIC CENTER
+              initialZoom: _initialZoom,     // ✅ DYNAMIC ZOOM
             ),
             children: [
               TileLayer(
@@ -220,7 +257,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
               MarkerLayer(
                 markers: _threats.map((threat) {
                   return Marker(
-                    point: LatLng(threat['lat'] ?? 8.8833, threat['lon'] ?? 11.3667),
+                    point: LatLng(threat['lat'] ?? _initialCenter.latitude, threat['lon'] ?? _initialCenter.longitude),
                     width: 40,
                     height: 40,
                     child: GestureDetector(
@@ -253,7 +290,6 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             right: 0,
             height: 200,
             child: Container(
-              // ✅ NO 'const' HERE, ALLOWING DYNAMIC OPACITY CALCULATION
               decoration: BoxDecoration(
                 color: const Color(0xFF1F2937),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -314,7 +350,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   }
 }
 
-// ✅ EXTRACTED TOP CARD TO A SEPARATE WIDGET FOR CLEANER CODE & NO CONST ERRORS
+// ✅ EXTRACTED TOP CARD TO A SEPARATE WIDGET FOR CLEANER CODE
 class _DashboardQuickLinkCard extends StatelessWidget {
   const _DashboardQuickLinkCard();
 
@@ -358,37 +394,29 @@ class _DashboardQuickLinkCard extends StatelessWidget {
   }
 }
 
-// ✅ HOTSPOT MODEL CLASS
+// ✅ UPDATED HOTSPOT MODEL TO MATCH BACKEND API RESPONSE
 class Hotspot {
-  final int clusterId;
-  final double centerLat;
-  final double centerLon;
-  final double radiusKm;
-  final int reportCount;
-  final String threatLevel;
-  final List<String> reportIds;
-  
+  final double lat;
+  final double lon;
+  final String category;
+  final String severity;
+  final String state;
+
   Hotspot({
-    required this.clusterId,
-    required this.centerLat,
-    required this.centerLon,
-    required this.radiusKm,
-    required this.reportCount,
-    required this.threatLevel,
-    required this.reportIds,
+    required this.lat,
+    required this.lon,
+    required this.category,
+    required this.severity,
+    required this.state,
   });
-  
+
   factory Hotspot.fromJson(Map<String, dynamic> json) {
     return Hotspot(
-      clusterId: json['cluster_id'] ?? 0,
-      centerLat: (json['center_lat'] ?? 0.0).toDouble(),
-      centerLon: (json['center_lon'] ?? 0.0).toDouble(),
-      radiusKm: (json['radius_km'] ?? 0.0).toDouble(),
-      reportCount: json['report_count'] ?? 0,
-      threatLevel: json['threat_level'] ?? 'MODERATE',
-      reportIds: (json['report_ids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ?? [],
+      lat: (json['lat'] ?? 0.0).toDouble(),
+      lon: (json['lon'] ?? 0.0).toDouble(),
+      category: json['category'] ?? 'Unknown',
+      severity: json['severity'] ?? 'MODERATE',
+      state: json['state'] ?? 'TARABA',
     );
   }
 }

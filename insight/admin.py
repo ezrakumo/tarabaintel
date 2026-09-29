@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import (
     LGA, Report, FieldAgent, FieldVerification, 
@@ -90,7 +91,7 @@ class RedemptionAdmin(admin.ModelAdmin):
     search_fields = ('user_profile__user__username', 'delivery_details')
     readonly_fields = ('created_at', 'reviewed_at', 'fulfilled_at')
 
-# ✅ 11. AGENT REGISTRATION REQUEST ADMIN (CRITICAL FOR ONBOARDING)
+# ✅ 11. AGENT REGISTRATION REQUEST ADMIN (FULLY AUTOMATED APPROVAL)
 @admin.register(AgentRegistrationRequest)
 class AgentRegistrationRequestAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'phone_number', 'lga', 'status', 'submitted_at')
@@ -100,16 +101,49 @@ class AgentRegistrationRequestAdmin(admin.ModelAdmin):
     
     actions = ['approve_agents', 'reject_agents']
 
-    @admin.action(description='Approve selected agents')
+    @admin.action(description='Approve selected agents & Create Accounts')
     def approve_agents(self, request, queryset):
         count = 0
         for obj in queryset.filter(status='PENDING'):
+            # 1. Create the actual Django User Account
+            username = obj.phone_number
+            password = obj.phone_number # Using phone number as default password
+            
+            user, created = User.objects.get_or_create(username=username)
+            if created:
+                user.set_password(password)
+                user.first_name = obj.full_name
+                if obj.email:
+                    user.email = obj.email
+                user.save()
+            
+            # 2. Create the User Profile
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'tier': 'CITIZEN', 
+                    'total_points': 0, 
+                    'lifetime_points': 0, 
+                    'phone_number': obj.phone_number
+                }
+            )
+            
+            # 3. Create the Field Agent Record
+            agent_count = FieldAgent.objects.count()
+            agent_id = f"AGENT_{agent_count + 1:03d}"
+            FieldAgent.objects.get_or_create(
+                agent_id=agent_id,
+                defaults={'name': obj.full_name, 'is_active': True}
+            )
+
+            # 4. Update the Registration Paperwork
             obj.status = 'APPROVED'
             obj.approved_by = request.user
             obj.approved_at = timezone.now()
             obj.save()
             count += 1
-        self.message_user(request, f'{count} agents approved successfully.')
+            
+        self.message_user(request, f'{count} agents approved and accounts created successfully!')
 
     @admin.action(description='Reject selected agents')
     def reject_agents(self, request, queryset):
